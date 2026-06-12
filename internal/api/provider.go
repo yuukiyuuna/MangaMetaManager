@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/openclaw/MangaMetaManager/internal/provider"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/provider"
 )
 
 type ProviderHandler struct{}

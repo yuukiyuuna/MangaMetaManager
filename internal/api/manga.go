@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/openclaw/MangaMetaManager/internal/core"
-	"github.com/openclaw/MangaMetaManager/internal/metadata"
-	"github.com/openclaw/MangaMetaManager/internal/models"
-	"github.com/openclaw/MangaMetaManager/internal/provider"
-	"github.com/openclaw/MangaMetaManager/internal/scanner"
-	"github.com/openclaw/MangaMetaManager/internal/utils"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/core"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/provider"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/scanner"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/utils"
 )
 
 type MangaHandler struct{}

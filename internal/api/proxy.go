@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/openclaw/MangaMetaManager/internal/models"
-	"github.com/openclaw/MangaMetaManager/internal/network"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/network"
 )
 
 type ProxyHandler struct {

@@ -1,7 +1,7 @@
 package provider
 
 import (
-	"github.com/openclaw/MangaMetaManager/internal/metadata"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
 )
 
 type SearchResult struct {

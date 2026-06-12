@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openclaw/MangaMetaManager/internal/models"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
 )
 
 // HTTPClientFactory creates a new http.Client based on proxy settings

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/openclaw/MangaMetaManager/cmd/mmm"
+	"github.com/yuukiyuuna/MangaMetaManager/cmd/mmm"
 )
 
 func main() {

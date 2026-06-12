@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/openclaw/MangaMetaManager/internal/metadata"
-	"github.com/openclaw/MangaMetaManager/internal/network"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/network"
 )
 
 type BangumiProvider struct {

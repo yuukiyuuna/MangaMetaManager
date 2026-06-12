@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/openclaw/MangaMetaManager/internal/metadata"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
 )
 
 func ReadComicInfo(pathStr string) (*metadata.ComicInfo, error) {

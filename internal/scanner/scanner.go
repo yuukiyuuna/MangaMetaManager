@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/openclaw/MangaMetaManager/internal/metadata"
-	"github.com/openclaw/MangaMetaManager/internal/models"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
 )
 
 func ScanLibrary() error {
