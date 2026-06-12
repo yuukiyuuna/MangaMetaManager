@@ -1,0 +1,53 @@
+# Binary and DB
+mmm
+mmm.exe
+mmm.db
+mmm.db-journal
+mmm.db-shm
+mmm.db-wal
+
+# Config and Secrets
+config.yaml
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Go
+vendor/
+*.test
+*.prof
+go.sum.tmp
+
+# Node / Frontend
+node_modules/
+web/dist/
+web/node_modules/
+web/stats.html
+.eslintcache
+.vite/
+
+# Temporary Files
+mmm-*.zip
+
+# OS Specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+.project
+.settings/
+.classpath
