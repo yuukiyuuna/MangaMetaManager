@@ -65,8 +65,20 @@ func (h *MangaHandler) getBackupSetting() bool {
 }
 
 func (h *MangaHandler) ListSeries(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	sizeStr := c.DefaultQuery("size", "20")
+	
+	var page, size int
+	fmt.Sscanf(pageStr, "%d", &page)
+	fmt.Sscanf(sizeStr, "%d", &size)
+	
+	if page < 1 { page = 1 }
+	if size < 1 { size = 20 }
+	
+	offset := (page - 1) * size
+
 	var series []models.MangaSeries
-	models.DB.Preload("Books").Find(&series)
+	models.DB.Preload("Books").Order("title asc").Limit(size).Offset(offset).Find(&series)
 	c.JSON(http.StatusOK, series)
 }
 
@@ -103,15 +115,18 @@ func (h *MangaHandler) UpdateSeries(c *gin.Context) {
 		"originalTitle":   "original_title",
 		"series":          "series",
 		"alternateSeries": "alternate_series",
-		"author":          "author",
-		"publisher":       "publisher",
-		"genre":           "genre",
-		"summary":         "summary",
+		"author":         "author",
+		"translator":     "translator",
+		"publisher":      "publisher",
+		"genre":          "genre",
+		"tags":           "tags",
+		"summary":        "summary",
+
 		"year":            "year",
 		"month":           "month",
 		"day":             "day",
 		"web":             "web",
-		"manga":           "manga",
+		"type":            "type",
 		"ageRating":       "age_rating",
 	}
 
@@ -126,6 +141,10 @@ func (h *MangaHandler) UpdateSeries(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Reload and Sync
+	models.DB.First(&series, id)
+	go scanner.SyncSeriesMetadata(&series)
 
 	c.JSON(http.StatusOK, series)
 }
@@ -146,15 +165,17 @@ type ScrapeRequest struct {
 	Series          string `json:"series"`
 	AlternateSeries string `json:"alternateSeries"`
 	Author          string `json:"author"`
+	Translator      string `json:"translator"`
 	Publisher       string `json:"publisher"`
 	Genre           string `json:"genre"`
+	Tags            string `json:"tags"`
 	Summary         string `json:"summary"`
 	Year            int    `json:"year"`
 	Month           int    `json:"month"`
 	Day             int    `json:"day"`
 	Web             string `json:"web"`
 	PageCount       int    `json:"pageCount"`
-	Manga           string `json:"manga"`
+	Type            string `json:"type"`
 	AgeRating       string `json:"ageRating"`
 }
 
@@ -178,18 +199,22 @@ func (h *MangaHandler) ScrapeSeries(c *gin.Context) {
 	series.Series = input.Series
 	series.AlternateSeries = input.AlternateSeries
 	series.Author = input.Author
+	series.Translator = input.Translator
 	series.Publisher = input.Publisher
 	series.Summary = input.Summary
 	series.Genre = input.Genre
+	series.Tags = input.Tags
 	series.Year = input.Year
 	series.Month = input.Month
 	series.Day = input.Day
 	series.Web = input.Web
-	series.Manga = input.Manga
+	series.Type = input.Type
 	series.AgeRating = input.AgeRating
 	series.Status = "Scraped"
 
 	models.DB.Save(&series)
+	go scanner.SyncSeriesMetadata(&series)
+
 	c.JSON(http.StatusOK, series)
 }
 
@@ -224,10 +249,13 @@ func (h *MangaHandler) UpdateBook(c *gin.Context) {
 		"originalTitle": "original_title",
 		"series":        "series",
 		"number":        "number",
-		"author":        "author",
-		"publisher":     "publisher",
-		"genre":         "genre",
-		"summary":       "summary",
+		"author":         "author",
+		"translator":     "translator",
+		"publisher":      "publisher",
+		"genre":          "genre",
+		"tags":           "tags",
+		"summary":        "summary",
+
 		"volume":        "volume",
 		"year":          "year",
 		"month":         "month",
@@ -239,9 +267,16 @@ func (h *MangaHandler) UpdateBook(c *gin.Context) {
 		"characters":    "characters",
 		"teams":         "teams",
 	}
-
 	dbUpdates := make(map[string]interface{})
+	if val, ok := input["manga"]; ok {
+		dbUpdates["type"] = val
+	}
+	if val, ok := input["type"]; ok {
+		dbUpdates["type"] = val
+	}
+
 	for jsonKey, dbKey := range mapping {
+		if jsonKey == "manga" { continue } // Handled manually
 		if val, ok := input[jsonKey]; ok {
 			dbUpdates[dbKey] = val
 		}
@@ -252,32 +287,9 @@ func (h *MangaHandler) UpdateBook(c *gin.Context) {
 		return
 	}
 	
-	// Reload for ZIP sync
+	// Reload and Sync
 	models.DB.First(&book, id)
-
-	go func() {
-		existing, _ := scanner.ReadComicInfo(book.Path)
-		if existing == nil { existing = &metadata.ComicInfo{} }
-		
-		existing.Title = book.Title
-		existing.OriginalTitle = book.OriginalTitle
-		existing.Series = book.Series
-		existing.Number = book.Number
-		existing.Writer = book.Author
-		existing.Publisher = book.Publisher
-		existing.Genre = book.Genre
-		existing.Summary = book.Summary
-		existing.Volume = book.Volume
-		existing.Year = book.Year
-		existing.Month = book.Month
-		existing.Day = book.Day
-		existing.Web = book.Web
-		existing.PageCount = book.PageCount
-		existing.Manga = book.Manga
-		existing.AgeRating = book.AgeRating
-
-		scanner.WriteComicInfo(book.Path, existing, h.getBackupSetting())
-	}()
+	go scanner.SyncBookMetadata(&book, h.getBackupSetting())
 
 	c.JSON(http.StatusOK, book)
 }
@@ -300,44 +312,25 @@ func (h *MangaHandler) ScrapeBook(c *gin.Context) {
 	book.OriginalTitle = input.OriginalTitle
 	book.Series = input.Series
 	book.Author = input.Author
+	book.Translator = input.Translator
 	book.Publisher = input.Publisher
 	book.Genre = input.Genre
+	book.Tags = input.Tags
 	book.Summary = input.Summary
 	book.Year = input.Year
 	book.Month = input.Month
 	book.Day = input.Day
 	book.Web = input.Web
 	book.PageCount = input.PageCount
-	book.Manga = input.Manga
+	book.Type = input.Type
 	book.AgeRating = input.AgeRating
 	book.Status = "Scraped"
 
 	models.DB.Save(&book)
-
-	go func() {
-		existing, _ := scanner.ReadComicInfo(book.Path)
-		if existing == nil { existing = &metadata.ComicInfo{} }
-		
-		existing.Title = book.Title
-		existing.OriginalTitle = book.OriginalTitle
-		existing.Series = book.Series
-		existing.Writer = book.Author
-		existing.Publisher = book.Publisher
-		existing.Genre = book.Genre
-		existing.Summary = book.Summary
-		existing.Year = book.Year
-		existing.Month = book.Month
-		existing.Day = book.Day
-		existing.Web = book.Web
-		existing.PageCount = book.PageCount
-		existing.Manga = book.Manga
-		existing.AgeRating = book.AgeRating
-
-		scanner.WriteComicInfo(book.Path, existing, h.getBackupSetting())
-	}()
+	go scanner.SyncBookMetadata(&book, h.getBackupSetting())
 
 	c.JSON(http.StatusOK, book)
-}
+	}
 
 func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 	seriesId := c.Param("id")
@@ -365,42 +358,33 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 				if err == nil && len(results) > 0 {
 					details, err := p.GetDetails(results[0].ID)
 					if err == nil {
-						existing, _ := scanner.ReadComicInfo(b.Path)
-						if existing == nil { existing = &metadata.ComicInfo{} }
-						
 						b.Title = details.Title
 						b.OriginalTitle = details.OriginalTitle
 						b.Author = details.Writer
+						b.Translator = details.Translator
 						b.Publisher = details.Publisher
 						b.Genre = details.Genre
+						b.Tags = details.Tags
 						b.Summary = details.Summary
 						b.Year = details.Year
 						b.Month = details.Month
 						b.Day = details.Day
 						b.Web = details.Web
 						b.PageCount = details.PageCount
-						b.Manga = details.Manga
+						
+						// Default to 漫画 for auto scrape
+						if details.Manga == "No" {
+							b.Type = "小说"
+						} else {
+							b.Type = "漫画"
+						}
+						
 						b.AgeRating = details.AgeRating
 						b.Status = "Scraped"
 
 						models.DB.Save(&b)
+						scanner.SyncBookMetadata(&b, h.getBackupSetting())
 
-						existing.Title = details.Title
-						existing.OriginalTitle = details.OriginalTitle
-						existing.Series = details.Series
-						existing.Writer = details.Writer
-						existing.Publisher = details.Publisher
-						existing.Genre = details.Genre
-						existing.Summary = details.Summary
-						existing.Year = details.Year
-						existing.Month = details.Month
-						existing.Day = details.Day
-						existing.Web = details.Web
-						existing.PageCount = details.PageCount
-						existing.Manga = details.Manga
-						existing.AgeRating = details.AgeRating
-
-						scanner.WriteComicInfo(b.Path, existing, h.getBackupSetting())
 						// Small delay to prevent rate limit
 						time.Sleep(500 * time.Millisecond)
 					}
@@ -466,7 +450,11 @@ func (h *MangaHandler) UpdateSeriesXML(c *gin.Context) {
 	series.Month = info.Month
 	series.Day = info.Day
 	series.Web = info.Web
-	series.Manga = info.Manga
+	if info.Manga == "No" {
+		series.Type = "小说"
+	} else {
+		series.Type = "漫画"
+	}
 	series.AgeRating = info.AgeRating
 	models.DB.Save(&series)
 	c.JSON(http.StatusOK, gin.H{"status": "saved"})
@@ -523,7 +511,11 @@ func (h *MangaHandler) UpdateBookXML(c *gin.Context) {
 	book.Day = info.Day
 	book.Web = info.Web
 	book.PageCount = info.PageCount
-	book.Manga = info.Manga
+	if info.Manga == "No" {
+		book.Type = "小说"
+	} else {
+		book.Type = "漫画"
+	}
 	book.AgeRating = info.AgeRating
 	book.Characters = info.Characters
 	book.Teams = info.Teams

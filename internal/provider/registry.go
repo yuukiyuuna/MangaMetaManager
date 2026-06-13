@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -40,4 +41,20 @@ func InitProviders() {
 	Register(NewAmazonProvider())
 	Register(NewFanzaProvider())
 	Register(NewBangumiProvider())
+}
+
+func GetTagNameByURL(url string) string {
+	if url == "" {
+		return ""
+	}
+	if strings.Contains(url, "bgm.tv") {
+		return "CustomBangumi"
+	}
+	if strings.Contains(url, "amazon") {
+		return "CustomAmazon"
+	}
+	if strings.Contains(url, "dmm") || strings.Contains(url, "fanza") {
+		return "CustomFanza"
+	}
+	return ""
 }

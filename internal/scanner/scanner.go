@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
 )
 
@@ -71,8 +70,10 @@ func processMangaFile(path string) {
 	result := models.DB.Where("path = ?", dir).First(&series)
 	if result.Error != nil {
 		series = models.MangaSeries{
-			Path:  dir,
-			Title: filepath.Base(dir),
+			Path: dir,
+			MangaBase: models.MangaBase{
+				Title: filepath.Base(dir),
+			},
 		}
 		models.DB.Create(&series)
 	}
@@ -89,7 +90,10 @@ func processMangaFile(path string) {
 		SeriesID: series.ID,
 		Path:     path,
 		Filename: filename,
-		Title:    strings.TrimSuffix(filename, filepath.Ext(filename)),
+		MangaBase: models.MangaBase{
+			Title: strings.TrimSuffix(filename, filepath.Ext(filename)),
+			Type:  "漫画", // Default
+		},
 	}
 
 	if info != nil {
@@ -101,7 +105,10 @@ func processMangaFile(path string) {
 		newBook.Summary = info.Summary
 		newBook.Status = "Scraped"
 		
-		updateSeriesFromComicInfo(&series, info)
+		// Map back ComicInfo.Manga to our Type
+		if info.Manga == "No" {
+			newBook.Type = "小说"
+		}
 	}
 
 	if result.Error != nil {
@@ -109,29 +116,18 @@ func processMangaFile(path string) {
 	} else {
 		models.DB.Model(&book).Updates(newBook)
 	}
-}
 
-func updateSeriesFromComicInfo(series *models.MangaSeries, info *metadata.ComicInfo) {
-	changed := false
-	if series.Series == "" && info.Series != "" {
-		series.Series = info.Series
-		changed = true
-	}
-	if series.Author == "" && info.Writer != "" {
-		series.Author = info.Writer
-		changed = true
-	}
-	if series.Genre == "" && info.Genre != "" {
-		series.Genre = info.Genre
-		changed = true
-	}
-	if series.Summary == "" && info.Summary != "" {
-		series.Summary = info.Summary
-		changed = true
-	}
+	// Sync back to file to ensure consistency and flattening
+	SyncBookMetadata(&newBook, false)
 	
-	if changed {
+	// Sync series if needed
+	if info != nil && info.Series != "" {
+		series.Series = info.Series
+		series.Author = info.Writer
+		series.Summary = info.Summary
+		series.Genre = info.Genre
 		series.Status = "Scraped"
-		models.DB.Save(series)
+		models.DB.Save(&series)
+		SyncSeriesMetadata(&series)
 	}
 }

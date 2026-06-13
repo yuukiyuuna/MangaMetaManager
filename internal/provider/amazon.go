@@ -17,6 +17,7 @@ func NewAmazonProvider() *AmazonProvider {
 
 func (p *AmazonProvider) ID() string   { return "amazon" }
 func (p *AmazonProvider) Name() string { return "Amazon" }
+func (p *AmazonProvider) GetCustomTagName() string { return "CustomAmazon" }
 
 func (p *AmazonProvider) Search(query string) ([]SearchResult, error) {
 	// client, err := p.factory.GetClient(p.ID())

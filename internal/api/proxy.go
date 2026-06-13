@@ -49,6 +49,18 @@ func (h *ProxyHandler) UpdateGlobalProxy(c *gin.Context) {
 		return
 	}
 
+	// Validation
+	if input.Enabled {
+		if input.Host == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Host cannot be empty when proxy is enabled"})
+			return
+		}
+		if input.Port <= 0 || input.Port > 65535 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid port number"})
+			return
+		}
+	}
+
 	var settings models.ProxySettings
 	result := models.DB.First(&settings)
 	if result.Error != nil {

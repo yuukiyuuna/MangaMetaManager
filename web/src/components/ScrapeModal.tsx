@@ -39,8 +39,8 @@ const ScrapeModal: React.FC<ScrapeModalProps> = ({ itemId, itemType, initialTitl
   const [saving, setSaving] = useState(false);
 
   const fieldsToCompare = itemType === 'series' 
-    ? ['title', 'originalTitle', 'series', 'alternateSeries', 'author', 'publisher', 'genre', 'summary', 'year', 'month', 'day', 'web', 'manga', 'ageRating']
-    : ['title', 'originalTitle', 'author', 'publisher', 'genre', 'summary', 'year', 'month', 'day', 'web', 'pageCount', 'manga', 'ageRating'];
+    ? ['title', 'originalTitle', 'series', 'alternateSeries', 'author', 'translator', 'publisher', 'genre', 'tags', 'summary', 'year', 'month', 'day', 'web', 'type', 'ageRating']
+    : ['title', 'originalTitle', 'author', 'translator', 'publisher', 'genre', 'tags', 'summary', 'year', 'month', 'day', 'web', 'pageCount', 'type', 'ageRating'];
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -82,15 +82,17 @@ const ScrapeModal: React.FC<ScrapeModalProps> = ({ itemId, itemType, initialTitl
         series: currentRes.data.series || '',
         alternateSeries: currentRes.data.alternateSeries || '',
         author: currentRes.data.author || '',
+        translator: currentRes.data.translator || '',
         publisher: currentRes.data.publisher || '',
         genre: currentRes.data.genre || '',
+        tags: currentRes.data.tags || '',
         summary: currentRes.data.summary || '',
         year: currentRes.data.year || 0,
         month: currentRes.data.month || 0,
         day: currentRes.data.day || 0,
         web: currentRes.data.web || '',
         pageCount: currentRes.data.pageCount || 0,
-        manga: currentRes.data.manga || '',
+        type: currentRes.data.type || '漫画',
         ageRating: currentRes.data.ageRating || ''
       };
       
@@ -100,15 +102,17 @@ const ScrapeModal: React.FC<ScrapeModalProps> = ({ itemId, itemType, initialTitl
         series: detailsRes.data.Series || '',
         alternateSeries: detailsRes.data.AlternateSeries || '',
         author: detailsRes.data.Writer || '',
+        translator: detailsRes.data.Translator || '',
         publisher: detailsRes.data.Publisher || '',
         genre: detailsRes.data.Genre || '',
+        tags: detailsRes.data.Tags || '',
         summary: detailsRes.data.Summary || '',
         year: detailsRes.data.Year || 0,
         month: detailsRes.data.Month || 0,
         day: detailsRes.data.Day || 0,
         web: detailsRes.data.Web || '',
         pageCount: detailsRes.data.PageCount || 0,
-        manga: detailsRes.data.Manga || '',
+        type: (detailsRes.data.Manga === 'No' ? '小说' : '漫画'),
         ageRating: detailsRes.data.AgeRating || ''
       };
       

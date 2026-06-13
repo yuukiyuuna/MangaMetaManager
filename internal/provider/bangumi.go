@@ -23,6 +23,7 @@ func NewBangumiProvider() *BangumiProvider {
 
 func (p *BangumiProvider) ID() string   { return "bangumi" }
 func (p *BangumiProvider) Name() string { return "Bangumi" }
+func (p *BangumiProvider) GetCustomTagName() string { return "CustomBangumi" }
 
 type bgmV0SearchRequest struct {
 	Keyword string `json:"keyword"`
@@ -152,19 +153,24 @@ func (p *BangumiProvider) GetDetails(id string) (*metadata.ComicInfo, error) {
 	}
 
 	var authors []string
+	var translators []string
 	var genres []string
+	var tags []string
 
 	for i, t := range item.Tags {
-		if i >= 8 {
-			break
+		if i < 8 {
+			genres = append(genres, t.Name)
 		}
-		genres = append(genres, t.Name)
+		tags = append(tags, t.Name)
 	}
 	if len(genres) > 0 {
 		info.Genre = strings.Join(genres, ", ")
 	}
+	if len(tags) > 0 {
+		info.Tags = strings.Join(tags, ", ")
+	}
 
-	// Parse Infobox for Author and Publisher
+	// Parse Infobox
 	for _, field := range item.Infobox {
 		key := field.Key
 		if key == "作者" || key == "原作" || key == "作画" {
@@ -174,6 +180,16 @@ func (p *BangumiProvider) GetDetails(id string) (*metadata.ComicInfo, error) {
 				if first, ok := v[0].(map[string]interface{}); ok {
 					if name, ok := first["v"].(string); ok {
 						authors = append(authors, name)
+					}
+				}
+			}
+		} else if key == "译者" || key == "翻译" {
+			if v, ok := field.Value.(string); ok {
+				translators = append(translators, v)
+			} else if v, ok := field.Value.([]interface{}); ok && len(v) > 0 {
+				if first, ok := v[0].(map[string]interface{}); ok {
+					if name, ok := first["v"].(string); ok {
+						translators = append(translators, name)
 					}
 				}
 			}
@@ -206,6 +222,9 @@ func (p *BangumiProvider) GetDetails(id string) (*metadata.ComicInfo, error) {
 
 	if len(authors) > 0 {
 		info.Writer = strings.Join(authors, ", ")
+	}
+	if len(translators) > 0 {
+		info.Translator = strings.Join(translators, ", ")
 	}
 
 	return info, nil

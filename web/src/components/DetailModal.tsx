@@ -199,6 +199,16 @@ const DetailModal: React.FC<DetailModalProps> = ({ itemId, itemType, onClose, on
                 </div>
 
                 <div>
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">Translator (翻译)</label>
+                  <input
+                    type="text"
+                    value={formData.translator || ''}
+                    onChange={e => setFormData({...formData, translator: e.target.value})}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  />
+                </div>
+
+                <div>
                   <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">Publisher</label>
                   <input
                     type="text"
@@ -209,11 +219,21 @@ const DetailModal: React.FC<DetailModalProps> = ({ itemId, itemType, onClose, on
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">Genre / Tags</label>
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">Genre / Categories</label>
                   <input
                     type="text"
                     value={formData.genre || ''}
                     onChange={e => setFormData({...formData, genre: e.target.value})}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">Tags (标签)</label>
+                  <input
+                    type="text"
+                    value={formData.tags || ''}
+                    onChange={e => setFormData({...formData, tags: e.target.value})}
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                   />
                 </div>
@@ -258,6 +278,18 @@ const DetailModal: React.FC<DetailModalProps> = ({ itemId, itemType, onClose, on
                     />
                   </div>
                 )}
+
+                <div className="md:col-span-1">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">类型 (Type)</label>
+                  <select
+                    value={formData.type || '漫画'}
+                    onChange={e => setFormData({...formData, type: e.target.value})}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-bold"
+                  >
+                    <option value="漫画">漫画 (Manga)</option>
+                    <option value="小说">小说 (Novel)</option>
+                  </select>
+                </div>
 
                 <div className="md:col-span-2">
                   <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block flex items-center">

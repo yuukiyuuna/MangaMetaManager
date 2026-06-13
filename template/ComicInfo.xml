@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <!-- 书籍（单本）基本信息 -->
+  <Title></Title>
+  <Summary></Summary>
+  <Number></Number>
+
+  <!-- 发布日期与识别码 -->
+  <Year></Year>
+  <Month></Month>
+  <Day></Day>
+  <Web></Web>
+  <GTIN></GTIN>
+
+  <!-- 创作者（多个人名用逗号隔开） -->
+  <Writer></Writer>
+  <Penciller></Penciller>
+  <Inker></Inker>
+  <Colorist></Colorist>
+  <Letterer></Letterer>
+  <CoverArtist></CoverArtist>
+  <Editor></Editor>
+  <Translator></Translator>
+
+  <!-- 系列（Series）级别元数据 -->
+  <Series></Series>
+  <Volume></Volume>
+  <Count></Count>
+  <Publisher></Publisher>
+  <Genre></Genre>
+  <Tags></Tags>
+  <LanguageISO></LanguageISO>
+  <AgeRating></AgeRating>  <!-- 如 Generic, Teen, Mature 等 -->
+  <Manga></Manga>    <!-- 日漫通常为 YesAndRightToLeft -->
+  
+  <!-- 自定义信息收集字段 -->
+  
+
+  <!-- 集合与阅读列表自动化（高级功能
+  <SeriesGroup>xxx</SeriesGroup>
+  <AlternateSeries>xxx</AlternateSeries>
+  <AlternateNumber>xxx</AlternateNumber>
+  <StoryArc>xxx</StoryArc>
+  -->
+</ComicInfo>

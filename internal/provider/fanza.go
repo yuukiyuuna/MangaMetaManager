@@ -17,6 +17,7 @@ func NewFanzaProvider() *FanzaProvider {
 
 func (p *FanzaProvider) ID() string   { return "fanza" }
 func (p *FanzaProvider) Name() string { return "FANZA" }
+func (p *FanzaProvider) GetCustomTagName() string { return "CustomFanza" }
 
 func (p *FanzaProvider) Search(query string) ([]SearchResult, error) {
 	return []SearchResult{}, nil

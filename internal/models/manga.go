@@ -2,51 +2,45 @@ package models
 
 import "gorm.io/gorm"
 
-type MangaSeries struct {
-	gorm.Model
-	Path            string      `json:"path" gorm:"uniqueIndex"`
-	Title           string      `json:"title"`
-	OriginalTitle   string      `json:"originalTitle"`
-	Series          string      `json:"series"`
-	AlternateSeries string      `json:"alternateSeries"`
-	Author          string      `json:"author"`
-	Publisher       string      `json:"publisher"`
-	Genre           string      `json:"genre"`
-	Summary         string      `json:"summary"`
-	Year            int         `json:"year"`
-	Month           int         `json:"month"`
-	Day             int         `json:"day"`
-	Web             string      `json:"web"`
-	Manga           string      `json:"manga"` // Yes/No
-	AgeRating       string      `json:"ageRating"`
-	Status          string      `json:"status"` // e.g., Scraped, Missing
-	Books           []MangaBook `json:"books" gorm:"foreignKey:SeriesID"`
-}
-
-type MangaBook struct {
-	gorm.Model
-	SeriesID        uint   `json:"seriesId"`
-	Path            string `json:"path" gorm:"uniqueIndex"`
-	Filename        string `json:"filename"`
+type MangaBase struct {
 	Title           string `json:"title"`
 	OriginalTitle   string `json:"originalTitle"`
 	Series          string `json:"series"`
-	Number          string `json:"number"`
 	Author          string `json:"author"`
+	Translator      string `json:"translator"`
 	Publisher       string `json:"publisher"`
 	Genre           string `json:"genre"`
-	Volume          int    `json:"volume"`
+	Tags            string `json:"tags"`
+	Summary         string `json:"summary"`
 	Year            int    `json:"year"`
 	Month           int    `json:"month"`
 	Day             int    `json:"day"`
 	Web             string `json:"web"`
-	PageCount       int    `json:"pageCount"`
-	Manga           string `json:"manga"` // Yes/No
+	Type            string `json:"type" gorm:"index"`      // 漫画 or 小说
 	AgeRating       string `json:"ageRating"`
+	Status          string `json:"status" gorm:"index"`    // e.g., Scraped, Missing
+	LastError       string `json:"lastError"`
+}
+
+type MangaSeries struct {
+	gorm.Model
+	MangaBase
+	Path            string      `json:"path" gorm:"uniqueIndex"`
+	AlternateSeries string      `json:"alternateSeries"`
+	Books           []MangaBook `json:"books" gorm:"foreignKey:SeriesID;constraint:OnDelete:CASCADE"`
+}
+
+type MangaBook struct {
+	gorm.Model
+	MangaBase
+	SeriesID        uint   `json:"seriesId" gorm:"index"`
+	Path            string `json:"path" gorm:"uniqueIndex"`
+	Filename        string `json:"filename"`
+	Number          string `json:"number"`
+	Volume          int    `json:"volume"`
+	PageCount       int    `json:"pageCount"`
 	Characters      string `json:"characters"`
 	Teams           string `json:"teams"`
-	Status          string `json:"status"`
-	Summary         string `json:"summary"`
 }
 
 

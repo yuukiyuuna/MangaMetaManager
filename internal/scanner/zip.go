@@ -9,9 +9,26 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
 )
+
+var (
+	fileLocks = make(map[string]*sync.Mutex)
+	locksMu   sync.Mutex
+)
+
+func getFileLock(path string) *sync.Mutex {
+	locksMu.Lock()
+	defer locksMu.Unlock()
+	if l, ok := fileLocks[path]; ok {
+		return l
+	}
+	l := &sync.Mutex{}
+	fileLocks[path] = l
+	return l
+}
 
 func ReadComicInfo(pathStr string) (*metadata.ComicInfo, error) {
 	r, err := zip.OpenReader(pathStr)
@@ -54,6 +71,10 @@ func ReadComicInfo(pathStr string) (*metadata.ComicInfo, error) {
 }
 
 func WriteComicInfo(pathStr string, info *metadata.ComicInfo, backup bool) error {
+	lock := getFileLock(pathStr)
+	lock.Lock()
+	defer lock.Unlock()
+
 	if backup {
 		if err := backupFile(pathStr); err != nil {
 			// Log error but continue? Or fail? Let's log it.

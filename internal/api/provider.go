@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/provider"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/utils"
 )
 
 type ProviderHandler struct{}
@@ -38,6 +39,9 @@ func (h *ProviderHandler) ListProviders(c *gin.Context) {
 func (h *ProviderHandler) Search(c *gin.Context) {
 	id := c.Param("id")
 	query := c.Query("q")
+
+	// Pre-clean query to remove tags/extensions if user sent raw filename
+	query = utils.CleanQuery(query)
 	
 	p, err := provider.GetProvider(id)
 	if err != nil {

@@ -14,7 +14,7 @@ type ComicInfo struct {
 	XmlnsXsd            string   `xml:"xmlns:xsd,attr"`
 	Title               string   `xml:"Title,omitempty"`
 	Series              string   `xml:"Series,omitempty"`
-	OriginalTitle       string   `xml:"OriginalTitle,omitempty"` // Custom extension
+	OriginalTitle       string   `xml:"OriginalTitle,omitempty"`
 	Number              string   `xml:"Number,omitempty"`
 	Count               int      `xml:"Count,omitempty"`
 	Volume              int      `xml:"Volume,omitempty"`
@@ -33,15 +33,17 @@ type ComicInfo struct {
 	Letterer            string   `xml:"Letterer,omitempty"`
 	CoverArtist         string   `xml:"CoverArtist,omitempty"`
 	Editor              string   `xml:"Editor,omitempty"`
+	Translator          string   `xml:"Translator,omitempty"`
 	Publisher           string   `xml:"Publisher,omitempty"`
 	Imprint             string   `xml:"Imprint,omitempty"`
 	Genre               string   `xml:"Genre,omitempty"`
+	Tags                string   `xml:"Tags,omitempty"`
 	Web                 string   `xml:"Web,omitempty"`
 	PageCount           int      `xml:"PageCount,omitempty"`
 	LanguageISO         string   `xml:"LanguageISO,omitempty"`
 	Format              string   `xml:"Format,omitempty"`
-	BlackAndWhite       string   `xml:"BlackAndWhite,omitempty"` // "Yes" or "No"
-	Manga               string   `xml:"Manga,omitempty"`         // "Yes" or "No"
+	BlackAndWhite       string   `xml:"BlackAndWhite,omitempty"`
+	Manga               string   `xml:"Manga,omitempty"`
 	Characters          string   `xml:"Characters,omitempty"`
 	Teams               string   `xml:"Teams,omitempty"`
 	Locations           string   `xml:"Locations,omitempty"`
@@ -53,4 +55,41 @@ type ComicInfo struct {
 	MainCharacterOrTeam string   `xml:"MainCharacterOrTeam,omitempty"`
 	Review              string   `xml:"Review,omitempty"`
 	GTIN                string   `xml:"GTIN,omitempty"`
+	CustomElements      []any    `xml:",any"`
+}
+
+type CustomTag struct {
+	XMLName xml.Name
+	Value   string `xml:",chardata"`
+}
+
+// SetMangaType maps friendly types ("漫画", "小说") to ComicInfo standards
+func (c *ComicInfo) SetMangaType(mangaType string) {
+	if mangaType == "小说" {
+		c.Manga = "No"
+	} else {
+		c.Manga = "YesAndRightToLeft"
+	}
+}
+
+// SetCustomProviderTag injects a provider-specific URL tag
+func (c *ComicInfo) SetCustomProviderTag(tagName, url string) {
+	if url == "" || tagName == "" {
+		return
+	}
+
+	tag := CustomTag{
+		XMLName: xml.Name{Local: tagName},
+		Value:   url,
+	}
+
+	// Remove existing same-named tags
+	var cleaned []any
+	for _, el := range c.CustomElements {
+		if ct, ok := el.(CustomTag); ok && ct.XMLName.Local == tagName {
+			continue
+		}
+		cleaned = append(cleaned, el)
+	}
+	c.CustomElements = append(cleaned, tag)
 }

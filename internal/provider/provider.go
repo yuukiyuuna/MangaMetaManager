@@ -18,4 +18,5 @@ type Provider interface {
 	Name() string
 	Search(query string) ([]SearchResult, error)
 	GetDetails(id string) (*metadata.ComicInfo, error)
+	GetCustomTagName() string
 }
