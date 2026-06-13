@@ -16,7 +16,7 @@ func InitDB(dbPath string) {
 	}
 
 	// Auto migrate models
-	err = DB.AutoMigrate(&ProxySettings{}, &ProviderProxyStrategy{}, &MangaSeries{}, &MangaBook{}, &LibraryFolder{})
+	err = DB.AutoMigrate(&ProxySettings{}, &ProviderProxyStrategy{}, &MangaSeries{}, &MangaBook{}, &LibraryFolder{}, &AppSettings{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}

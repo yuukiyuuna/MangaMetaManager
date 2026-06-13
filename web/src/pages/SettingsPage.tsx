@@ -18,6 +18,10 @@ interface LibraryFolder {
   path: string;
 }
 
+interface AppSettings {
+  backupBeforeFlatten: boolean;
+}
+
 const SettingsPage: React.FC = () => {
   const [proxy, setProxy] = useState<ProxySettings>({
     enabled: false,
@@ -28,6 +32,10 @@ const SettingsPage: React.FC = () => {
     noProxy: '',
   });
 
+  const [appSettings, setAppSettings] = useState<AppSettings>({
+    backupBeforeFlatten: true,
+  });
+
   const [folders, setFolders] = useState<LibraryFolder[]>([]);
   const [newFolderPath, setNewFolderPath] = useState('');
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null);
@@ -36,6 +44,10 @@ const SettingsPage: React.FC = () => {
     try {
       const proxyRes = await axios.get('/api/settings/proxy');
       setProxy(proxyRes.data);
+      
+      const appRes = await axios.get('/api/settings/app');
+      setAppSettings(appRes.data);
+
       const folderRes = await axios.get('/api/library/folders');
       setFolders(folderRes.data);
     } catch (err) {
@@ -50,6 +62,17 @@ const SettingsPage: React.FC = () => {
     } catch (err) {
       console.error(err);
       showToast('Failed to save proxy settings.', 'error');
+    }
+  };
+
+  const saveAppSettings = async (newSettings: AppSettings) => {
+    try {
+      await axios.patch('/api/settings/app', newSettings);
+      setAppSettings(newSettings);
+      showToast('App settings updated!');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to update app settings.', 'error');
     }
   };
 
@@ -237,6 +260,39 @@ const SettingsPage: React.FC = () => {
           {folders.length === 0 && (
             <p className="text-gray-500 text-center py-4">No folders added yet.</p>
           )}
+        </div>
+      </section>
+
+      {/* App Settings Section */}
+      <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6">App Settings</h3>
+        
+        <div className="space-y-6">
+          <div className="flex items-start justify-between">
+            <div className="max-w-2xl">
+              <label className="text-lg font-medium text-gray-800">
+                Backup Before Metadata Rewrite (写入元数据前备份)
+              </label>
+              <p className="text-gray-500 mt-1">
+                When saving metadata, the app restructures (flattens) the ZIP/CBZ structure to ensure 100% compatibility with Komga. 
+                Enabling this will create a <code className="bg-gray-100 px-1 rounded">.bak</code> copy of your original file before the first modification.
+                <br />
+                <span className="text-sm italic">
+                  写入元数据时为了兼容 Komga 会展平压缩包结构。开启此项后，程序会在修改前生成一份 .bak 备份，以防万一。
+                </span>
+              </p>
+            </div>
+            <button
+              onClick={() => saveAppSettings({ ...appSettings, backupBeforeFlatten: !appSettings.backupBeforeFlatten })}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 mt-1 ${
+                appSettings.backupBeforeFlatten ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                appSettings.backupBeforeFlatten ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+          </div>
         </div>
       </section>
     </div>

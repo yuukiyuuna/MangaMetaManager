@@ -56,6 +56,14 @@ func (h *MangaHandler) RegisterRoutes(r *gin.RouterGroup) {
 	}
 }
 
+func (h *MangaHandler) getBackupSetting() bool {
+	var settings models.AppSettings
+	if err := models.DB.First(&settings).Error; err != nil {
+		return true // Default
+	}
+	return settings.BackupBeforeFlatten
+}
+
 func (h *MangaHandler) ListSeries(c *gin.Context) {
 	var series []models.MangaSeries
 	models.DB.Preload("Books").Find(&series)
@@ -268,7 +276,7 @@ func (h *MangaHandler) UpdateBook(c *gin.Context) {
 		existing.Manga = book.Manga
 		existing.AgeRating = book.AgeRating
 
-		scanner.WriteComicInfo(book.Path, existing)
+		scanner.WriteComicInfo(book.Path, existing, h.getBackupSetting())
 	}()
 
 	c.JSON(http.StatusOK, book)
@@ -325,7 +333,7 @@ func (h *MangaHandler) ScrapeBook(c *gin.Context) {
 		existing.Manga = book.Manga
 		existing.AgeRating = book.AgeRating
 
-		scanner.WriteComicInfo(book.Path, existing)
+		scanner.WriteComicInfo(book.Path, existing, h.getBackupSetting())
 	}()
 
 	c.JSON(http.StatusOK, book)
@@ -392,7 +400,7 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 						existing.Manga = details.Manga
 						existing.AgeRating = details.AgeRating
 
-						scanner.WriteComicInfo(b.Path, existing)
+						scanner.WriteComicInfo(b.Path, existing, h.getBackupSetting())
 						// Small delay to prevent rate limit
 						time.Sleep(500 * time.Millisecond)
 					}
@@ -497,7 +505,7 @@ func (h *MangaHandler) UpdateBookXML(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid XML format: " + err.Error()})
 		return
 	}
-	if err := scanner.WriteComicInfo(book.Path, &info); err != nil {
+	if err := scanner.WriteComicInfo(book.Path, &info, h.getBackupSetting()); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write ZIP: " + err.Error()})
 		return
 	}

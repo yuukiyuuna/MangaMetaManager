@@ -49,6 +49,9 @@ var serveCmd = &cobra.Command{
 
 			providerHandler := api.NewProviderHandler()
 			providerHandler.RegisterRoutes(apiGroup)
+
+			settingsHandler := api.NewSettingsHandler()
+			settingsHandler.RegisterRoutes(apiGroup)
 		}
 
 		// Static Files

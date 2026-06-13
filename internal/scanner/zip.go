@@ -3,6 +3,7 @@ package scanner
 import (
 	"archive/zip"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -52,7 +53,14 @@ func ReadComicInfo(pathStr string) (*metadata.ComicInfo, error) {
 	return nil, nil // No ComicInfo.xml found
 }
 
-func WriteComicInfo(pathStr string, info *metadata.ComicInfo) error {
+func WriteComicInfo(pathStr string, info *metadata.ComicInfo, backup bool) error {
+	if backup {
+		if err := backupFile(pathStr); err != nil {
+			// Log error but continue? Or fail? Let's log it.
+			fmt.Printf("Warning: failed to create backup for %s: %v\n", pathStr, err)
+		}
+	}
+
 	// Ensure Komga compatibility namespaces
 	info.XmlnsXsi = "http://www.w3.org/2001/XMLSchema-instance"
 	info.XmlnsXsd = "http://www.w3.org/2001/XMLSchema"
@@ -74,51 +82,44 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo) error {
 	}
 	defer r.Close()
 
-	// Find the best path for ComicInfo.xml
+	// Hardcode root path for ComicInfo.xml to ensure Komga compatibility
 	xmlPath := "ComicInfo.xml"
-	existingXmlFound := false
 	
-	// First pass to find existing XML or determine image folder
-	dirCounts := make(map[string]int)
-	for _, f := range r.File {
-		if path.Base(f.Name) == "ComicInfo.xml" {
-			xmlPath = f.Name
-			existingXmlFound = true
-			if f.Name == "ComicInfo.xml" {
-				// Root is preferred, stop looking
-				break
-			}
-		}
-		if isImage(f.Name) {
-			dir := path.Dir(f.Name)
-			if dir == "." {
-				dir = ""
-			}
-			dirCounts[dir]++
-		}
-	}
+	// Collision tracking
+	usedNames := make(map[string]bool)
+	usedNames[xmlPath] = true // Reserve the XML name
 
-	if !existingXmlFound {
-		maxCount := 0
-		bestDir := ""
-		for dir, count := range dirCounts {
-			if count > maxCount {
-				maxCount = count
-				bestDir = dir
-			}
-		}
-		if bestDir != "" {
-			xmlPath = path.Join(bestDir, "ComicInfo.xml")
-		}
-	}
-
-	// Copy all files except the one at xmlPath
+	// Copy all files from original archive, flattening the structure
 	for _, f := range r.File {
-		if f.Name == xmlPath {
+		// Skip directories and existing ComicInfo.xml
+		if f.FileInfo().IsDir() || strings.ToLower(path.Base(f.Name)) == "comicinfo.xml" {
 			continue
 		}
 		
-		w, err := zw.Create(f.Name)
+		baseName := path.Base(f.Name)
+		newName := baseName
+
+		// Handle collisions if root already has this filename
+		if usedNames[newName] {
+			// Try prepending the immediate parent directory name (e.g., vol1_01.jpg)
+			dirName := path.Base(path.Dir(f.Name))
+			if dirName != "." && dirName != "" && dirName != "/" {
+				newName = fmt.Sprintf("%s_%s", dirName, baseName)
+			}
+			
+			// If still colliding, append a counter
+			counter := 1
+			for usedNames[newName] {
+				ext := path.Ext(baseName)
+				nameWithoutExt := strings.TrimSuffix(baseName, ext)
+				newName = fmt.Sprintf("%s_%d%s", nameWithoutExt, counter, ext)
+				counter++
+			}
+		}
+
+		usedNames[newName] = true
+
+		w, err := zw.Create(newName)
 		if err != nil {
 			return err
 		}
@@ -135,7 +136,7 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo) error {
 		}
 	}
 
-	// Add/Update ComicInfo.xml at determined path
+	// Add/Update ComicInfo.xml at the root
 	w, err := zw.Create(xmlPath)
 	if err != nil {
 		return err
@@ -160,6 +161,7 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo) error {
 	}
 	
 	// Replace original file
+	r.Close() // Close before rename for Windows compatibility (though on Linux it's less critical)
 	tmpFile.Close()
 	return os.Rename(tmpFile.Name(), pathStr)
 }
@@ -176,4 +178,24 @@ func isImage(name string) bool {
 func IsArchive(pathStr string) bool {
 	ext := strings.ToLower(filepath.Ext(pathStr))
 	return ext == ".zip" || ext == ".cbz"
+}
+
+func backupFile(src string) error {
+	s, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	dst := src + ".bak"
+	d, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+
+	if _, err := io.Copy(d, s); err != nil {
+		return err
+	}
+	return nil
 }
