@@ -50,8 +50,15 @@ const LibraryPage: React.FC = () => {
     if (node) observer.current.observe(node);
   }, [loading, hasMore]);
 
+  const cleanFilename = (raw: string) => {
+    let name = raw.replace(/\.(zip|cbz|rar|7z|pdf|tar|cbr)$/i, '');
+    name = name.replace(/\[.*?\]|\(.*?\)|{.*?}/g, ' ');
+    return name.trim().replace(/\s+/g, ' ');
+  };
+
   const openScrapeModal = (id: number, type: 'series' | 'book', initialTitle: string) => {
-    setScrapingItem({ id, type, title: initialTitle });
+    const cleaned = type === 'book' ? cleanFilename(initialTitle) : initialTitle;
+    setScrapingItem({ id, type, title: cleaned });
   };
 
   const fetchLibrary = async (pageNum: number, isNew: boolean = false) => {
