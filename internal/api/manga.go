@@ -126,6 +126,7 @@ func (h *MangaHandler) UpdateSeries(c *gin.Context) {
 		"month":           "month",
 		"day":             "day",
 		"web":             "web",
+		"language":        "language",
 		"type":            "type",
 		"ageRating":       "age_rating",
 	}
@@ -174,6 +175,7 @@ type ScrapeRequest struct {
 	Month           int    `json:"month"`
 	Day             int    `json:"day"`
 	Web             string `json:"web"`
+	Language        string `json:"language"`
 	PageCount       int    `json:"pageCount"`
 	Type            string `json:"type"`
 	AgeRating       string `json:"ageRating"`
@@ -208,6 +210,7 @@ func (h *MangaHandler) ScrapeSeries(c *gin.Context) {
 	series.Month = input.Month
 	series.Day = input.Day
 	series.Web = input.Web
+	series.Language = input.Language
 	series.Type = input.Type
 	series.AgeRating = input.AgeRating
 	series.Status = "Scraped"
@@ -261,6 +264,7 @@ func (h *MangaHandler) UpdateBook(c *gin.Context) {
 		"month":         "month",
 		"day":           "day",
 		"web":           "web",
+		"language":      "language",
 		"pageCount":     "page_count",
 		"manga":         "manga",
 		"ageRating":     "age_rating",
@@ -321,6 +325,7 @@ func (h *MangaHandler) ScrapeBook(c *gin.Context) {
 	book.Month = input.Month
 	book.Day = input.Day
 	book.Web = input.Web
+	book.Language = input.Language
 	book.PageCount = input.PageCount
 	book.Type = input.Type
 	book.AgeRating = input.AgeRating
@@ -523,6 +528,7 @@ func (h *MangaHandler) UpdateBookXML(c *gin.Context) {
 	book.Month = info.Month
 	book.Day = info.Day
 	book.Web = info.Web
+	book.Language = info.LanguageISO
 	book.PageCount = info.PageCount
 	if info.Manga == "No" {
 		book.Type = "小说"

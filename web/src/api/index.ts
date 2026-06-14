@@ -36,6 +36,7 @@ export interface MangaBook {
   month: number;
   day: number;
   web: string;
+  language: string;
   pageCount: number;
   type: string;
   ageRating: string;
@@ -63,6 +64,7 @@ export interface MangaSeries {
   month: number;
   day: number;
   web: string;
+  language: string;
   type: string;
   ageRating: string;
   lastError: string;

@@ -16,6 +16,7 @@ type MangaBase struct {
 	Month           int    `json:"month"`
 	Day             int    `json:"day"`
 	Web             string `json:"web"`
+	Language        string `json:"language"`
 	Type            string `json:"type" gorm:"index"`      // 漫画 or 小说
 	AgeRating       string `json:"ageRating"`
 	Status          string `json:"status" gorm:"index"`    // e.g., Scraped, Missing
