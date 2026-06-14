@@ -473,8 +473,17 @@ func (h *MangaHandler) GetBookXML(c *gin.Context) {
 	}
 	existing, _ := scanner.ReadComicInfo(book.Path)
 	if existing == nil {
-		existing = &metadata.ComicInfo{XmlnsXsi: "http://www.w3.org/2001/XMLSchema-instance", XmlnsXsd: "http://www.w3.org/2001/XMLSchema"}
+		existing = &metadata.ComicInfo{}
 	}
+	// Always ensure namespaces for Komga compatibility
+	existing.XmlnsXsi = "http://www.w3.org/2001/XMLSchema-instance"
+	existing.XmlnsXsd = "http://www.w3.org/2001/XMLSchema"
+
+	// Ensure Manga type is set if empty (for new files or files without the field)
+	if existing.Manga == "" {
+		existing.SetMangaType(book.Type)
+	}
+
 	data, _ := xml.MarshalIndent(existing, "", "  ")
 	data = append([]byte(xml.Header), data...)
 	c.Data(http.StatusOK, "application/xml", data)

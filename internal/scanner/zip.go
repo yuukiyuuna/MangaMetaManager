@@ -86,8 +86,8 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo, backup bool) error
 	info.XmlnsXsi = "http://www.w3.org/2001/XMLSchema-instance"
 	info.XmlnsXsd = "http://www.w3.org/2001/XMLSchema"
 
-	// Create a temporary file
-	tmpFile, err := os.CreateTemp("", "mmm-*.zip")
+	// Create a temporary file in the same directory as the target to ensure atomic rename
+	tmpFile, err := os.CreateTemp(filepath.Dir(pathStr), "mmm-tmp-*.zip")
 	if err != nil {
 		return err
 	}
@@ -232,8 +232,8 @@ func WriteRawComicInfo(pathStr string, rawData []byte, backup bool) error {
 		}
 	}
 
-	// Create a temporary file
-	tmpFile, err := os.CreateTemp("", "mmm-raw-*.zip")
+	// Create a temporary file in the same directory as the target
+	tmpFile, err := os.CreateTemp(filepath.Dir(pathStr), "mmm-raw-tmp-*.zip")
 	if err != nil {
 		return err
 	}

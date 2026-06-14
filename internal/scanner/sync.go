@@ -35,6 +35,10 @@ func SyncBookMetadata(book *models.MangaBook, backup bool) error {
 	existing.AgeRating = book.AgeRating
 	existing.Characters = book.Characters
 	existing.Teams = book.Teams
+	existing.SeriesGroup = book.SeriesGroup
+	existing.AlternateSeries = book.AlternateSeries
+	existing.AlternateNumber = book.AlternateNumber
+	existing.StoryArc = book.StoryArc
 
 	// Unified Type Mapping
 	existing.SetMangaType(book.Type)

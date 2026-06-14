@@ -20,6 +20,10 @@ type MangaBase struct {
 	AgeRating       string `json:"ageRating"`
 	Status          string `json:"status" gorm:"index"`    // e.g., Scraped, Missing
 	LastError       string `json:"lastError"`
+	SeriesGroup     string `json:"seriesGroup"`
+	AlternateSeries string `json:"alternateSeries"`
+	AlternateNumber string `json:"alternateNumber"`
+	StoryArc        string `json:"storyArc"`
 }
 
 type MangaSeries struct {
