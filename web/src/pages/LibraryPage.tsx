@@ -50,9 +50,8 @@ const LibraryPage: React.FC = () => {
     if (node) observer.current.observe(node);
   }, [loading, hasMore]);
 
-  const openScrapeModal = (item: any, type: 'series' | 'book') => {
-    const initialTitle = type === 'book' ? item.filename : item.title;
-    setScrapingItem({ id: item.ID, type, title: initialTitle });
+  const openScrapeModal = (id: number, type: 'series' | 'book', initialTitle: string) => {
+    setScrapingItem({ id, type, title: initialTitle });
   };
 
   const fetchLibrary = async (pageNum: number, isNew: boolean = false) => {
@@ -215,7 +214,7 @@ const LibraryPage: React.FC = () => {
                     onToggleExpand={() => toggleExpand(series.ID)}
                     onViewDetails={() => setViewingItem({ id: series.ID, type: 'series' })}
                     onAutoScrape={() => setAutoScrapeSeriesId(series.ID)}
-                    onScrape={() => openScrapeModal(series, 'series')}
+                    onScrape={() => openScrapeModal(series.ID, 'series', series.title)}
                     onDelete={() => setDeletingSeriesId(series.ID)}
                     {...(index === seriesList.length - 1 ? { ref: lastElementRef } : {})}
                   />
@@ -230,8 +229,9 @@ const LibraryPage: React.FC = () => {
                             <BookRow 
                               key={book.ID}
                               book={book}
+                              parentTitle={series.title}
                               onViewDetails={() => setViewingItem({ id: book.ID, type: 'book' })}
-                              onScrape={() => openScrapeModal(book, 'book')}
+                              onScrape={(initialTitle) => openScrapeModal(book.ID, 'book', initialTitle)}
                             />
                           ))}
                         </div>

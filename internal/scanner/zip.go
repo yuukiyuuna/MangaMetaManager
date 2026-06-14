@@ -220,3 +220,92 @@ func backupFile(src string) error {
 	}
 	return nil
 }
+
+func WriteRawComicInfo(pathStr string, rawData []byte, backup bool) error {
+	lock := getFileLock(pathStr)
+	lock.Lock()
+	defer lock.Unlock()
+
+	if backup {
+		if err := backupFile(pathStr); err != nil {
+			fmt.Printf("Warning: failed to create backup for %s: %v\n", pathStr, err)
+		}
+	}
+
+	// Create a temporary file
+	tmpFile, err := os.CreateTemp("", "mmm-raw-*.zip")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	zw := zip.NewWriter(tmpFile)
+	
+	// Open original file
+	r, err := zip.OpenReader(pathStr)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	xmlPath := "ComicInfo.xml"
+	usedNames := make(map[string]bool)
+	usedNames[xmlPath] = true 
+
+	// Copy and flatten
+	for _, f := range r.File {
+		if f.FileInfo().IsDir() || strings.ToLower(path.Base(f.Name)) == "comicinfo.xml" {
+			continue
+		}
+		
+		baseName := path.Base(f.Name)
+		newName := baseName
+
+		if usedNames[newName] {
+			dirName := path.Base(path.Dir(f.Name))
+			if dirName != "." && dirName != "" && dirName != "/" {
+				newName = fmt.Sprintf("%s_%s", dirName, baseName)
+			}
+			counter := 1
+			for usedNames[newName] {
+				ext := path.Ext(baseName)
+				nameWithoutExt := strings.TrimSuffix(baseName, ext)
+				newName = fmt.Sprintf("%s_%d%s", nameWithoutExt, counter, ext)
+				counter++
+			}
+		}
+		usedNames[newName] = true
+
+		w, err := zw.Create(newName)
+		if err != nil {
+			return err
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(w, rc)
+		rc.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Write raw XML data
+	w, err := zw.Create(xmlPath)
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(rawData); err != nil {
+		return err
+	}
+
+	if err := zw.Close(); err != nil {
+		return err
+	}
+	
+	r.Close() 
+	tmpFile.Close()
+	return os.Rename(tmpFile.Name(), pathStr)
+}

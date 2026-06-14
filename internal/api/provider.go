@@ -40,8 +40,8 @@ func (h *ProviderHandler) Search(c *gin.Context) {
 	id := c.Param("id")
 	query := c.Query("q")
 
-	// Pre-clean query to remove tags/extensions if user sent raw filename
-	query = utils.CleanQuery(query)
+	// Pre-clean query
+	query = utils.BuildBookSearchQuery("", query)
 	
 	p, err := provider.GetProvider(id)
 	if err != nil {

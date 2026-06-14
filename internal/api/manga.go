@@ -349,11 +349,15 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 			p, err := provider.GetProvider(input.ProviderID)
 			if err != nil { return }
 
+			var series models.MangaSeries
+			if err := models.DB.First(&series, seriesId).Error; err != nil { return }
+
 			var books []models.MangaBook
 			if err := models.DB.Where("series_id = ?", seriesId).Find(&books).Error; err != nil { return }
 
 			for _, b := range books {
-				cleanedTitle := utils.CleanQuery(b.Filename)
+				// Combined context for more accurate book search
+				cleanedTitle := utils.BuildBookSearchQuery(series.Title, b.Filename)
 				results, err := p.Search(cleanedTitle)
 				if err == nil && len(results) > 0 {
 					details, err := p.GetDetails(results[0].ID)
@@ -493,7 +497,7 @@ func (h *MangaHandler) UpdateBookXML(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid XML format: " + err.Error()})
 		return
 	}
-	if err := scanner.WriteComicInfo(book.Path, &info, h.getBackupSetting()); err != nil {
+	if err := scanner.WriteRawComicInfo(book.Path, rawData, h.getBackupSetting()); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write ZIP: " + err.Error()})
 		return
 	}

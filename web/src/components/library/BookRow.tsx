@@ -4,11 +4,12 @@ import type { MangaBook } from '../../api';
 
 interface BookRowProps {
   book: MangaBook;
+  parentTitle: string;
   onViewDetails: () => void;
-  onScrape: () => void;
+  onScrape: (contextTitle: string) => void;
 }
 
-const BookRow: React.FC<BookRowProps> = ({ book, onViewDetails, onScrape }) => {
+const BookRow: React.FC<BookRowProps> = ({ book, parentTitle, onViewDetails, onScrape }) => {
   return (
     <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-blue-200 transition-all group/item">
       <div className="flex items-center flex-1 min-w-0 cursor-pointer" onClick={onViewDetails}>
@@ -39,7 +40,7 @@ const BookRow: React.FC<BookRowProps> = ({ book, onViewDetails, onScrape }) => {
             <Eye className="w-3 h-3 mr-1.5" /> DETAILS
           </button>
           <button 
-            onClick={onScrape}
+            onClick={() => onScrape(`${parentTitle} ${book.filename}`)}
             className="px-2.5 py-1.5 bg-white border border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black transition-all shadow-sm flex items-center"
           >
             <Search className="w-3 h-3 mr-1.5" /> SCRAPE

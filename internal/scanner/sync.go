@@ -1,10 +1,6 @@
 package scanner
 
 import (
-	"encoding/xml"
-	"os"
-	"path/filepath"
-
 	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/provider"
@@ -60,47 +56,9 @@ func SyncBookMetadata(book *models.MangaBook, backup bool) error {
 	return err
 }
 
-// SyncSeriesMetadata synchronizes series record to folder-level ComicInfo.xml.
+// SyncSeriesMetadata is now a no-op for file synchronization as requested. 
+// Series metadata is managed only in the database to keep the library clean.
 func SyncSeriesMetadata(series *models.MangaSeries) error {
-	xmlPath := filepath.Join(series.Path, "ComicInfo.xml")
-	existing, _ := ReadComicInfo(xmlPath)
-	if existing == nil {
-		existing = &metadata.ComicInfo{}
-	}
-
-	existing.Title = series.Title
-	existing.OriginalTitle = series.OriginalTitle
-	existing.Series = series.Series
-	existing.Writer = series.Author
-	existing.Translator = series.Translator
-	existing.Publisher = series.Publisher
-	existing.Genre = series.Genre
-	existing.Tags = series.Tags
-	existing.Summary = series.Summary
-	existing.Year = series.Year
-	existing.Month = series.Month
-	existing.Day = series.Day
-	existing.Web = series.Web
-	
-	existing.SetMangaType(series.Type)
-
-	if tagName := provider.GetTagNameByURL(series.Web); tagName != "" {
-		existing.SetCustomProviderTag(tagName, series.Web)
-	}
-
-	data, err := xml.MarshalIndent(existing, "", "  ")
-	if err != nil {
-		return err
-	}
-	data = append([]byte(xml.Header), data...)
-	
-	err = os.WriteFile(xmlPath, data, 0644)
-	
-	errStr := ""
-	if err != nil {
-		errStr = err.Error()
-	}
-	models.DB.Model(&models.MangaSeries{}).Where("id = ?", series.ID).Update("last_error", errStr)
-	
-	return err
+	// We no longer write ComicInfo.xml to the series folder.
+	return nil
 }
