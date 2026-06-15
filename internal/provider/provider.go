@@ -20,4 +20,5 @@ type Provider interface {
 	GetDetails(id string) (*metadata.ComicInfo, error)
 	GetCustomTagName() string
 	GetRelatedBooks(id string) ([]SearchResult, error)
+	ExtractIDFromURL(url string) string
 }

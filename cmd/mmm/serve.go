@@ -10,6 +10,7 @@ import (
 	"github.com/yuukiyuuna/MangaMetaManager/internal/logger"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/provider"
+	"github.com/yuukiyuuna/MangaMetaManager/internal/scanner"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -33,6 +34,9 @@ var serveCmd = &cobra.Command{
 			dbPath = "mmm.db"
 		}
 		models.InitDB(dbPath)
+
+		// Cleanup abandoned temp files on startup
+		scanner.CleanupTempFiles()
 
 		// Initialize Providers
 		provider.InitProviders()

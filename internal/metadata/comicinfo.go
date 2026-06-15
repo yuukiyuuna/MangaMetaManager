@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"encoding/xml"
+	"unicode"
 )
 
 // ComicInfo represents the standard metadata structure for digital comics.
@@ -92,4 +93,27 @@ func (c *ComicInfo) SetCustomProviderTag(tagName, url string) {
 		cleaned = append(cleaned, el)
 	}
 	c.CustomElements = append(cleaned, tag)
+}
+
+// SetGTIN sets and normalizes the GTIN (ISBN) field
+func (c *ComicInfo) SetGTIN(gtin string) {
+	c.GTIN = NormalizeISBN13(gtin)
+}
+
+// NormalizeISBN13 cleans a string and tries to ensure it's a valid ISBN-13 format
+func NormalizeISBN13(input string) string {
+	// Clean all non-digit/non-X characters
+	var cleaned []rune
+	for _, r := range input {
+		if unicode.IsDigit(r) || unicode.ToUpper(r) == 'X' {
+			cleaned = append(cleaned, unicode.ToUpper(r))
+		}
+	}
+	
+	s := string(cleaned)
+	if len(s) == 10 {
+		// Basic ISBN-10 to 13 conversion (prepend 978, simple version without checksum recalc for now)
+		return "978" + s
+	}
+	return s
 }

@@ -15,6 +15,13 @@ func InitDB(dbPath string) {
 		log.Fatalf("Failed to connect database: %v", err)
 	}
 
+	// Optimize SQLite for concurrency
+	sqlDB, err := DB.DB()
+	if err == nil {
+		sqlDB.Exec("PRAGMA journal_mode=WAL;")
+		sqlDB.SetMaxOpenConns(1)
+	}
+
 	// Auto migrate models
 	err = DB.AutoMigrate(&ProxySettings{}, &ProviderProxyStrategy{}, &MangaSeries{}, &MangaBook{}, &LibraryFolder{}, &AppSettings{})
 	if err != nil {

@@ -7,6 +7,8 @@ interface Task {
   type: string;
   status: string;
   message: string;
+  progress: number;
+  total: number;
 }
 
 const TaskStatus: React.FC = () => {
@@ -72,6 +74,25 @@ const TaskStatus: React.FC = () => {
                   <div className="text-xs font-bold text-gray-800 truncate">{t.type}</div>
                   <div className="text-[10px] text-gray-400 font-medium truncate italic">{t.id}</div>
                   {t.message && <div className="text-[10px] text-gray-500 mt-1">{t.message}</div>}
+                  
+                  {t.status === 'running' && t.total > 0 && (
+                    <div className="mt-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tighter">
+                          Progress: {t.progress} / {t.total}
+                        </span>
+                        <span className="text-[9px] font-black text-blue-600">
+                          {Math.round((t.progress / t.total) * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1 overflow-hidden">
+                        <div 
+                          className="bg-blue-500 h-full transition-all duration-500 ease-out rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                          style={{ width: `${(t.progress / t.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

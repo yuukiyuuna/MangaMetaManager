@@ -148,7 +148,7 @@ func (f *HTTPClientFactory) buildProxyURL(pType, host string, port int, user, pa
 }
 
 func (f *HTTPClientFactory) shouldBypassProxy(targetURL *url.URL, noProxy string) bool {
-	host := targetURL.Hostname()
+	host := strings.ToLower(targetURL.Hostname())
 	bypassList := strings.Split(noProxy, ",")
 	
 	// Default bypass
@@ -160,13 +160,25 @@ func (f *HTTPClientFactory) shouldBypassProxy(targetURL *url.URL, noProxy string
 	}
 
 	for _, b := range bypassList {
-		b = strings.TrimSpace(b)
+		b = strings.ToLower(strings.TrimSpace(b))
 		if b == "" {
 			continue
 		}
-		// Simple suffix match for now, could be improved with CIDR/Glob
-		if strings.HasSuffix(host, b) {
-			return true
+		
+		// If b starts with a dot, match suffix
+		if strings.HasPrefix(b, ".") {
+			if strings.HasSuffix(host, b) || host == b[1:] {
+				return true
+			}
+		} else {
+			// Exact match for domains or IPs
+			if host == b {
+				return true
+			}
+			// Suffix match for domains (common in NoProxy)
+			if strings.HasSuffix(host, "."+b) {
+				return true
+			}
 		}
 	}
 	return false

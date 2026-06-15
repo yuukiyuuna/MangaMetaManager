@@ -217,6 +217,10 @@ func (p *BangumiProvider) GetDetails(id string) (*metadata.ComicInfo, error) {
 				fmt.Sscanf(v, "%d", &p)
 				if p != 0 { info.PageCount = p }
 			}
+		} else if key == "ISBN" {
+			if v, ok := field.Value.(string); ok {
+				info.GTIN = v
+			}
 		}
 	}
 
@@ -279,4 +283,12 @@ func (p *BangumiProvider) GetRelatedBooks(id string) ([]SearchResult, error) {
 	}
 
 	return results, nil
+}
+
+func (p *BangumiProvider) ExtractIDFromURL(urlStr string) string {
+	if !strings.Contains(urlStr, "bgm.tv") {
+		return ""
+	}
+	parts := strings.Split(strings.TrimSuffix(urlStr, "/"), "/")
+	return parts[len(parts)-1]
 }

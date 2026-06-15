@@ -43,7 +43,7 @@ func SyncBookMetadata(book *models.MangaBook, backup bool) error {
 	existing.Tags = filterMetadataString(book.Tags)
 
 	existing.Summary = book.Summary
-	existing.Volume = book.Volume
+	existing.Volume = int(book.Volume)
 	existing.Year = book.Year
 	existing.Month = book.Month
 	existing.Day = book.Day
@@ -51,6 +51,10 @@ func SyncBookMetadata(book *models.MangaBook, backup bool) error {
 	existing.PageCount = book.PageCount
 	existing.LanguageISO = book.Language
 	existing.AgeRating = book.AgeRating
+	
+	// Normalize to 13 digits for XML, while DB keeps raw value
+	existing.SetGTIN(book.GTIN)
+	
 	existing.Characters = book.Characters
 	existing.Teams = book.Teams
 	existing.SeriesGroup = book.SeriesGroup
