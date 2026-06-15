@@ -1,26 +1,51 @@
 package scanner
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/yuukiyuuna/MangaMetaManager/internal/core"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
 )
 
-func ScanLibrary() error {
+func ScanLibrary(task *core.Task) error {
+	CleanupTempFiles()
+
 	var folders []models.LibraryFolder
 	if err := models.DB.Find(&folders).Error; err != nil {
 		return err
 	}
 
+	// 1. Count total files first for progress
+	total := 0
+	for _, folder := range folders {
+		filepath.Walk(folder.Path, func(path string, info os.FileInfo, err error) error {
+			if err == nil && !info.IsDir() && IsArchive(path) {
+				total++
+			}
+			return nil
+		})
+	}
+
+	if task != nil {
+		core.GlobalTaskManager.UpdateProgress(task, 0, total, "Starting scan...")
+	}
+
+	// 2. Process files
+	count := 0
 	for _, folder := range folders {
 		err := filepath.Walk(folder.Path, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 			if !info.IsDir() && IsArchive(path) {
+				count++
+				if task != nil {
+					core.GlobalTaskManager.UpdateProgress(task, count, total, filepath.Base(path))
+				}
 				processMangaFile(path)
 			}
 			return nil
@@ -32,13 +57,40 @@ func ScanLibrary() error {
 	return nil
 }
 
-func CleanLibrary() error {
+func CleanupTempFiles() {
+	var folders []models.LibraryFolder
+	if err := models.DB.Find(&folders).Error; err != nil {
+		return
+	}
+
+	for _, folder := range folders {
+		filepath.Walk(folder.Path, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if !info.IsDir() {
+				name := filepath.Base(path)
+				if strings.HasPrefix(name, "mmm-tmp-") || strings.HasPrefix(name, "mmm-raw-tmp-") {
+					log.Printf("Cleaning up abandoned temp file: %s", path)
+					os.Remove(path)
+				}
+			}
+			return nil
+		})
+	}
+}
+
+func CleanLibrary(task *core.Task) error {
 	log.Println("Starting database clean...")
 	
 	// 1. Clean Series
 	var seriesList []models.MangaSeries
 	if err := models.DB.Find(&seriesList).Error; err == nil {
-		for _, s := range seriesList {
+		total := len(seriesList)
+		for i, s := range seriesList {
+			if task != nil {
+				core.GlobalTaskManager.UpdateProgress(task, i, total, fmt.Sprintf("Checking series: %s", s.Title))
+			}
 			if _, err := os.Stat(s.Path); os.IsNotExist(err) {
 				log.Printf("Removing orphaned series: %s", s.Path)
 				models.DB.Unscoped().Delete(&s)
@@ -50,7 +102,11 @@ func CleanLibrary() error {
 	// 2. Clean Books
 	var books []models.MangaBook
 	if err := models.DB.Find(&books).Error; err == nil {
-		for _, b := range books {
+		total := len(books)
+		for i, b := range books {
+			if task != nil {
+				core.GlobalTaskManager.UpdateProgress(task, i, total, fmt.Sprintf("Checking book: %s", b.Filename))
+			}
 			if _, err := os.Stat(b.Path); os.IsNotExist(err) {
 				log.Printf("Removing orphaned book: %s", b.Path)
 				models.DB.Unscoped().Delete(&b)
@@ -100,7 +156,7 @@ func processMangaFile(path string) {
 		if info.Title != "" {
 			newBook.Title = info.Title
 		}
-		newBook.Volume = info.Volume
+		newBook.Volume = float64(info.Volume)
 		newBook.Author = info.Writer
 		newBook.Summary = info.Summary
 		newBook.Status = "Scraped"

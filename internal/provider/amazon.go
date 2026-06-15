@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"strings"
+
 	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/network"
 )
@@ -29,4 +31,24 @@ func (p *AmazonProvider) GetDetails(id string) (*metadata.ComicInfo, error) {
 	// client, err := p.factory.GetClient(p.ID())
 	// ... implementation ...
 	return nil, nil
+}
+
+func (p *AmazonProvider) GetRelatedBooks(id string) ([]SearchResult, error) {
+	return []SearchResult{}, nil
+}
+
+func (p *AmazonProvider) ExtractIDFromURL(urlStr string) string {
+	if !strings.Contains(urlStr, "amazon") {
+		return ""
+	}
+	// Simple extraction for /dp/ID or /product/ID
+	parts := strings.Split(urlStr, "/")
+	for i, part := range parts {
+		if part == "dp" || part == "product" {
+			if i+1 < len(parts) {
+				return strings.Split(parts[i+1], "?")[0]
+			}
+		}
+	}
+	return ""
 }

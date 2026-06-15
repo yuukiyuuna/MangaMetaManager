@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"encoding/xml"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"os"
 	"path"
@@ -15,19 +16,14 @@ import (
 )
 
 var (
-	fileLocks = make(map[string]*sync.Mutex)
-	locksMu   sync.Mutex
+	lockPool = make([]sync.Mutex, 128)
 )
 
-func getFileLock(path string) *sync.Mutex {
-	locksMu.Lock()
-	defer locksMu.Unlock()
-	if l, ok := fileLocks[path]; ok {
-		return l
-	}
-	l := &sync.Mutex{}
-	fileLocks[path] = l
-	return l
+func getFileLock(pathStr string) *sync.Mutex {
+	h := fnv.New32a()
+	h.Write([]byte(pathStr))
+	index := h.Sum32() % uint32(len(lockPool))
+	return &lockPool[index]
 }
 
 func ReadComicInfo(pathStr string) (*metadata.ComicInfo, error) {
@@ -117,7 +113,13 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo, backup bool) error
 			continue
 		}
 		
+		// Skip junk files
 		baseName := path.Base(f.Name)
+		lowerName := strings.ToLower(baseName)
+		if lowerName == "thumbs.db" || lowerName == ".ds_store" || strings.HasPrefix(lowerName, "._") {
+			continue
+		}
+
 		newName := baseName
 
 		// Handle collisions if root already has this filename
@@ -259,7 +261,13 @@ func WriteRawComicInfo(pathStr string, rawData []byte, backup bool) error {
 			continue
 		}
 		
+		// Skip junk files
 		baseName := path.Base(f.Name)
+		lowerName := strings.ToLower(baseName)
+		if lowerName == "thumbs.db" || lowerName == ".ds_store" || strings.HasPrefix(lowerName, "._") {
+			continue
+		}
+
 		newName := baseName
 
 		if usedNames[newName] {

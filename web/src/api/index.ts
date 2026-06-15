@@ -44,6 +44,7 @@ export interface MangaBook {
   summary: string;
   path: string;
   lastError: string;
+  gtin: string;
 }
 
 export interface MangaSeries {
@@ -68,6 +69,7 @@ export interface MangaSeries {
   type: string;
   ageRating: string;
   lastError: string;
+  gtin: string;
   books: MangaBook[];
 }
 

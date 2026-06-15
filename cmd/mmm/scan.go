@@ -17,7 +17,7 @@ var scanCmd = &cobra.Command{
 		models.InitDB(dbPath)
 
 		fmt.Println("Scanning library folders...")
-		if err := scanner.ScanLibrary(); err != nil {
+		if err := scanner.ScanLibrary(nil); err != nil {
 			log.Fatalf("Scan failed: %v", err)
 		}
 		fmt.Println("Scan completed.")
@@ -54,7 +54,7 @@ var libraryCleanCmd = &cobra.Command{
 		models.InitDB(dbPath)
 
 		fmt.Println("Cleaning library database...")
-		if err := scanner.CleanLibrary(); err != nil {
+		if err := scanner.CleanLibrary(nil); err != nil {
 			log.Fatalf("Clean failed: %v", err)
 		}
 		fmt.Println("Clean completed.")

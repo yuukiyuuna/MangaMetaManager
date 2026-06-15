@@ -25,6 +25,7 @@ type MangaBase struct {
 	AlternateSeries string `json:"alternateSeries"`
 	AlternateNumber string `json:"alternateNumber"`
 	StoryArc        string `json:"storyArc"`
+	GTIN            string `json:"gtin"`
 }
 
 type MangaSeries struct {
@@ -42,7 +43,7 @@ type MangaBook struct {
 	Path            string `json:"path" gorm:"uniqueIndex"`
 	Filename        string `json:"filename"`
 	Number          string `json:"number"`
-	Volume          int    `json:"volume"`
+	Volume          float64 `json:"volume"`
 	PageCount       int    `json:"pageCount"`
 	Characters      string `json:"characters"`
 	Teams           string `json:"teams"`

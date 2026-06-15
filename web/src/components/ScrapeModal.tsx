@@ -39,8 +39,8 @@ const ScrapeModal: React.FC<ScrapeModalProps> = ({ itemId, itemType, initialTitl
   const [saving, setSaving] = useState(false);
 
   const fieldsToCompare = itemType === 'series' 
-    ? ['title', 'originalTitle', 'series', 'alternateSeries', 'author', 'translator', 'publisher', 'genre', 'tags', 'summary', 'year', 'month', 'day', 'web', 'language', 'type', 'ageRating']
-    : ['title', 'originalTitle', 'author', 'translator', 'publisher', 'genre', 'tags', 'summary', 'year', 'month', 'day', 'web', 'language', 'pageCount', 'type', 'ageRating'];
+    ? ['title', 'originalTitle', 'series', 'alternateSeries', 'author', 'translator', 'publisher', 'genre', 'tags', 'summary', 'year', 'month', 'day', 'web', 'language', 'gtin', 'type', 'ageRating']
+    : ['title', 'originalTitle', 'author', 'translator', 'publisher', 'genre', 'tags', 'summary', 'year', 'month', 'day', 'web', 'language', 'gtin', 'pageCount', 'type', 'ageRating'];
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -92,6 +92,7 @@ const ScrapeModal: React.FC<ScrapeModalProps> = ({ itemId, itemType, initialTitl
         day: currentRes.data.day || 0,
         web: currentRes.data.web || '',
         language: currentRes.data.language || '',
+        gtin: currentRes.data.gtin || '',
         pageCount: currentRes.data.pageCount || 0,
         type: currentRes.data.type || '漫画',
         ageRating: currentRes.data.ageRating || ''
@@ -113,6 +114,7 @@ const ScrapeModal: React.FC<ScrapeModalProps> = ({ itemId, itemType, initialTitl
         day: detailsRes.data.Day || 0,
         web: detailsRes.data.Web || '',
         language: detailsRes.data.LanguageISO || '',
+        gtin: detailsRes.data.GTIN || '',
         pageCount: detailsRes.data.PageCount || 0,
         type: (detailsRes.data.Manga === 'No' ? '小说' : '漫画'),
         ageRating: detailsRes.data.AgeRating || ''

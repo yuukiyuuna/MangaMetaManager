@@ -13,11 +13,13 @@ const (
 )
 
 type Task struct {
-	ID      string   `json:"id"`
-	Type    TaskType `json:"type"`
-	Status  string   `json:"status"` // pending, running, completed, failed
-	Message string   `json:"message"`
-	Work    func()   `json:"-"`
+	ID       string   `json:"id"`
+	Type     TaskType `json:"type"`
+	Status   string   `json:"status"` // pending, running, completed, failed
+	Message  string   `json:"message"`
+	Progress int      `json:"progress"`
+	Total    int      `json:"total"`
+	Work     func()   `json:"-"`
 }
 
 type TaskManager struct {
@@ -59,6 +61,16 @@ func (tm *TaskManager) updateTask(t *Task, status, msg string) {
 	defer tm.mu.Unlock()
 	t.Status = status
 	t.Message = msg
+}
+
+func (tm *TaskManager) UpdateProgress(t *Task, progress, total int, msg string) {
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+	t.Progress = progress
+	t.Total = total
+	if msg != "" {
+		t.Message = msg
+	}
 }
 
 func (tm *TaskManager) GetTasks() []*Task {

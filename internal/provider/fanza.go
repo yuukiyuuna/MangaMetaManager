@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"strings"
+
 	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/network"
 )
@@ -25,4 +27,20 @@ func (p *FanzaProvider) Search(query string) ([]SearchResult, error) {
 
 func (p *FanzaProvider) GetDetails(id string) (*metadata.ComicInfo, error) {
 	return nil, nil
+}
+
+func (p *FanzaProvider) GetRelatedBooks(id string) ([]SearchResult, error) {
+	return []SearchResult{}, nil
+}
+
+func (p *FanzaProvider) ExtractIDFromURL(urlStr string) string {
+	if !strings.Contains(urlStr, "dmm.co.jp") && !strings.Contains(urlStr, "fanza.com") {
+		return ""
+	}
+	// Extract cid=ID or from path
+	if strings.Contains(urlStr, "cid=") {
+		parts := strings.Split(urlStr, "cid=")
+		return strings.Split(parts[1], "&")[0]
+	}
+	return ""
 }
