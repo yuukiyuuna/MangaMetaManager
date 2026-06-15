@@ -30,3 +30,7 @@ func (p *AmazonProvider) GetDetails(id string) (*metadata.ComicInfo, error) {
 	// ... implementation ...
 	return nil, nil
 }
+
+func (p *AmazonProvider) GetRelatedBooks(id string) ([]SearchResult, error) {
+	return []SearchResult{}, nil
+}

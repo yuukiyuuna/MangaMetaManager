@@ -26,3 +26,7 @@ func (p *FanzaProvider) Search(query string) ([]SearchResult, error) {
 func (p *FanzaProvider) GetDetails(id string) (*metadata.ComicInfo, error) {
 	return nil, nil
 }
+
+func (p *FanzaProvider) GetRelatedBooks(id string) ([]SearchResult, error) {
+	return []SearchResult{}, nil
+}

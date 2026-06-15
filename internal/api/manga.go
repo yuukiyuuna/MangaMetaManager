@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -357,15 +358,55 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 			var series models.MangaSeries
 			if err := models.DB.First(&series, seriesId).Error; err != nil { return }
 
+			// Prerequisite: Series must have a provider source
+			if series.Web == "" {
+				fmt.Printf("[AutoScrape] Aborted: Series %s has no source link\n", series.Title)
+				return
+			}
+
+			// Extract ID from URL (e.g. https://bgm.tv/subject/12345)
+			parts := strings.Split(strings.TrimSuffix(series.Web, "/"), "/")
+			subjectID := parts[len(parts)-1]
+
+			// Fetch Ground Truth related books
+			relatedBooks, err := p.GetRelatedBooks(subjectID)
+			if err != nil {
+				fmt.Printf("[AutoScrape] Error fetching related for %s: %v\n", series.Title, err)
+				return
+			}
+
 			var books []models.MangaBook
 			if err := models.DB.Where("series_id = ?", seriesId).Find(&books).Error; err != nil { return }
 
 			for _, b := range books {
-				// Combined context for more accurate book search
-				cleanedTitle := utils.BuildBookSearchQuery(series.Title, b.Filename)
-				results, err := p.Search(cleanedTitle)
-				if err == nil && len(results) > 0 {
-					details, err := p.GetDetails(results[0].ID)
+				localVol := utils.ParseVolumeNumber(b.Filename)
+				var matchedID string
+
+				// 1. Try numeric match
+				if localVol != -1 {
+					for _, rb := range relatedBooks {
+						remoteVol := utils.ParseVolumeNumber(rb.Title)
+						if localVol == remoteVol {
+							matchedID = rb.ID
+							break
+						}
+					}
+				}
+
+				// 2. Fallback to similarity match for irregular names
+				if matchedID == "" {
+					maxSim := 0.0
+					for _, rb := range relatedBooks {
+						sim := utils.SimpleSimilarity(b.Filename, rb.Title)
+						if sim > 0.8 && sim > maxSim {
+							maxSim = sim
+							matchedID = rb.ID
+						}
+					}
+				}
+
+				if matchedID != "" {
+					details, err := p.GetDetails(matchedID)
 					if err == nil {
 						b.Title = details.Title
 						b.OriginalTitle = details.OriginalTitle
@@ -381,7 +422,6 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 						b.Web = details.Web
 						b.PageCount = details.PageCount
 						
-						// Default to 漫画 for auto scrape
 						if details.Manga == "No" {
 							b.Type = "小说"
 						} else {
@@ -394,9 +434,11 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 						models.DB.Save(&b)
 						scanner.SyncBookMetadata(&b, h.getBackupSetting())
 
-						// Small delay to prevent rate limit
-						time.Sleep(500 * time.Millisecond)
+						// Moderate delay for API limits
+						time.Sleep(1000 * time.Millisecond)
 					}
+				} else {
+					fmt.Printf("[AutoScrape] No match found for: %s\n", b.Filename)
 				}
 			}
 		},

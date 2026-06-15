@@ -229,3 +229,54 @@ func (p *BangumiProvider) GetDetails(id string) (*metadata.ComicInfo, error) {
 
 	return info, nil
 }
+
+func (p *BangumiProvider) GetRelatedBooks(id string) ([]SearchResult, error) {
+	client, err := p.factory.GetClient(p.ID())
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := fmt.Sprintf("https://api.bgm.tv/v0/subjects/%s/subjects", id)
+	req, _ := http.NewRequest("GET", apiURL, nil)
+	req.Header.Set("User-Agent", "MangaMetaManager/1.0")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var bgmRes []struct {
+		ID     int    `json:"id"`
+		Type   int    `json:"type"`
+		Name   string `json:"name"`
+		NameCN string `json:"name_cn"`
+		Image  string `json:"image"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&bgmRes); err != nil {
+		return nil, err
+	}
+
+	results := make([]SearchResult, 0)
+	for _, item := range bgmRes {
+		// Only Book type (1)
+		if item.Type != 1 {
+			continue
+		}
+
+		title := item.NameCN
+		if title == "" {
+			title = item.Name
+		}
+		
+		results = append(results, SearchResult{
+			ID:       fmt.Sprintf("%d", item.ID),
+			Title:    title,
+			Series:   item.Name,
+			CoverURL: item.Image,
+		})
+	}
+
+	return results, nil
+}
