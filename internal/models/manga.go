@@ -39,14 +39,16 @@ type MangaSeries struct {
 type MangaBook struct {
 	gorm.Model
 	MangaBase
-	SeriesID        uint   `json:"seriesId" gorm:"index"`
-	Path            string `json:"path" gorm:"uniqueIndex"`
-	Filename        string `json:"filename"`
-	Number          string `json:"number"`
+	SeriesID        uint    `json:"seriesId" gorm:"index"`
+	Path            string  `json:"path" gorm:"uniqueIndex"`
+	Filename        string  `json:"filename"`
+	Number          string  `json:"number"`
 	Volume          float64 `json:"volume"`
-	PageCount       int    `json:"pageCount"`
-	Characters      string `json:"characters"`
-	Teams           string `json:"teams"`
+	PageCount       int     `json:"pageCount"`
+	Characters      string  `json:"characters"`
+	Teams           string  `json:"teams"`
+	FileModTime     int64   `json:"fileModTime"`
+	FileSize        int64   `json:"fileSize"`
 }
 
 

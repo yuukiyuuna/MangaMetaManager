@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"os"
 	"strings"
 
 	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
@@ -72,12 +73,24 @@ func SyncBookMetadata(book *models.MangaBook, backup bool) error {
 
 	err := WriteComicInfo(bookPath, existing, backup)
 
-	// Update error status in DB
+	// Update file metadata in DB if write was successful
+	if err == nil {
+		if info, statErr := os.Stat(bookPath); statErr == nil {
+			book.FileModTime = info.ModTime().Unix()
+			book.FileSize = info.Size()
+		}
+	}
+
+	// Update error status and metadata in DB
 	errStr := ""
 	if err != nil {
 		errStr = err.Error()
 	}
-	models.DB.Model(&models.MangaBook{}).Where("id = ?", book.ID).Update("last_error", errStr)
+	models.DB.Model(&models.MangaBook{}).Where("id = ?", book.ID).Updates(map[string]interface{}{
+		"last_error":    errStr,
+		"file_mod_time": book.FileModTime,
+		"file_size":     book.FileSize,
+	})
 
 	return err
 }

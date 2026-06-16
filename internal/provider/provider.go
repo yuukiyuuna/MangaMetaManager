@@ -1,8 +1,12 @@
 package provider
 
 import (
+	"errors"
+
 	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
 )
+
+var ErrNotImplemented = errors.New("provider not fully implemented yet")
 
 type SearchResult struct {
 	ID          string `json:"id"`

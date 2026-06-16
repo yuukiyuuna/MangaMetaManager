@@ -10,7 +10,16 @@ var (
 	cleanRegex = regexp.MustCompile(`\[.*?\]|\(.*?\)|{.*?}`)
 	volRegex   = regexp.MustCompile(`(?i)(?:v|vol|volume|第|卷)\s*\.?\s*(\d+(?:\.\d+)?)`)
 	numRegex   = regexp.MustCompile(`(\d+(?:\.\d+)?)`)
+	matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+	matchAllCap   = regexp.MustCompile("([a-z0-9])([A-Z])")
 )
+
+// CamelToSnake converts a camelCase string to snake_case
+func CamelToSnake(str string) string {
+	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
+	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+	return strings.ToLower(snake)
+}
 
 // ParseVolumeNumber extracts a volume number (e.g. 1, 2.5) from a string.
 // Returns -1 if no number is found.

@@ -74,6 +74,9 @@ func (h *ProxyHandler) UpdateGlobalProxy(c *gin.Context) {
 		models.DB.Model(&settings).Updates(input)
 	}
 
+	h.factory.InvalidateCache() // Invalidate cache after update
+
+	settings.Password = "" // Hide password
 	c.JSON(http.StatusOK, settings)
 }
 
@@ -117,6 +120,7 @@ func (h *ProxyHandler) GetProviderProxy(c *gin.Context) {
 		c.JSON(http.StatusOK, models.ProviderProxyStrategy{ProviderID: id, Strategy: "inherit"})
 		return
 	}
+	strategy.Password = "" // Hide password
 	c.JSON(http.StatusOK, strategy)
 }
 
@@ -141,5 +145,8 @@ func (h *ProxyHandler) UpdateProviderProxy(c *gin.Context) {
 		models.DB.Model(&strategy).Updates(input)
 	}
 
+	h.factory.InvalidateCache() // Invalidate cache after update
+
+	strategy.Password = "" // Hide password
 	c.JSON(http.StatusOK, strategy)
 }

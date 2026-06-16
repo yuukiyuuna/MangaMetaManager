@@ -7,48 +7,118 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
 )
 
+var (
+	globalFactory     *HTTPClientFactory
+	globalFactoryOnce sync.Once
+)
+
 // HTTPClientFactory creates a new http.Client based on proxy settings
-type HTTPClientFactory struct{}
+type HTTPClientFactory struct {
+	mu      sync.RWMutex
+	clients map[string]*http.Client
+}
 
 func NewHTTPClientFactory() *HTTPClientFactory {
-	return &HTTPClientFactory{}
+	globalFactoryOnce.Do(func() {
+		globalFactory = &HTTPClientFactory{
+			clients: make(map[string]*http.Client),
+		}
+	})
+	return globalFactory
+}
+
+func (f *HTTPClientFactory) InvalidateCache() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.clients = make(map[string]*http.Client)
+}
+
+type userAgentTransport struct {
+	rt http.RoundTripper
+}
+
+func (t *userAgentTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", "MangaMetaManager/1.0")
+	}
+	return t.rt.RoundTrip(req)
 }
 
 func (f *HTTPClientFactory) GetClient(providerID string) (*http.Client, error) {
-	var proxySettings *models.ProxySettings
-	var providerStrategy models.ProviderProxyStrategy
-
-	// Get Global Proxy
-	if err := models.DB.First(&proxySettings).Error; err != nil {
-		// If no global proxy settings found, return default client
-		return &http.Client{Timeout: 30 * time.Second}, nil
+	cacheKey := providerID
+	if cacheKey == "" {
+		cacheKey = "global"
 	}
 
-	// Get Provider Strategy
-	if providerID != "" {
-		if err := models.DB.Where("provider_id = ?", providerID).First(&providerStrategy).Error; err == nil {
-			switch providerStrategy.Strategy {
-			case "disabled":
-				return &http.Client{Timeout: 30 * time.Second}, nil
-			case "custom":
-				return f.createCustomClient(&providerStrategy)
-			case "inherit":
-				// Fall through to global
+	f.mu.RLock()
+	if client, ok := f.clients[cacheKey]; ok {
+		f.mu.RUnlock()
+		return client, nil
+	}
+	f.mu.RUnlock()
+
+	var proxySettings models.ProxySettings
+	var providerStrategy models.ProviderProxyStrategy
+
+	var client *http.Client
+	var err error
+
+	// Get Global Proxy
+	if errDB := models.DB.First(&proxySettings).Error; errDB != nil {
+		// If no global proxy settings found, return default client
+		client = &http.Client{
+			Transport: &userAgentTransport{http.DefaultTransport},
+			Timeout:   30 * time.Second,
+		}
+	} else {
+		// Get Provider Strategy
+		strategyFound := false
+		if providerID != "" {
+			if errDB := models.DB.Where("provider_id = ?", providerID).First(&providerStrategy).Error; errDB == nil {
+				strategyFound = true
+				switch providerStrategy.Strategy {
+				case "disabled":
+					client = &http.Client{
+						Transport: &userAgentTransport{http.DefaultTransport},
+						Timeout:   30 * time.Second,
+					}
+				case "custom":
+					client, err = f.createCustomClient(&providerStrategy)
+				case "inherit":
+					// Fall through to global
+					strategyFound = false
+				}
+			}
+		}
+
+		if !strategyFound {
+			// Use Global Proxy if enabled
+			if proxySettings.Enabled {
+				client, err = f.createGlobalClient(&proxySettings)
+			} else {
+				client = &http.Client{
+					Transport: &userAgentTransport{http.DefaultTransport},
+					Timeout:   30 * time.Second,
+				}
 			}
 		}
 	}
 
-	// Use Global Proxy if enabled
-	if proxySettings.Enabled {
-		return f.createGlobalClient(proxySettings)
+	if err != nil {
+		return nil, err
 	}
 
-	return &http.Client{Timeout: 30 * time.Second}, nil
+	f.mu.Lock()
+	f.clients[cacheKey] = client
+	f.mu.Unlock()
+
+	return client, nil
 }
 
 func (f *HTTPClientFactory) createGlobalClient(s *models.ProxySettings) (*http.Client, error) {
@@ -88,7 +158,7 @@ func (f *HTTPClientFactory) createGlobalClient(s *models.ProxySettings) (*http.C
 	}
 
 	return &http.Client{
-		Transport: transport,
+		Transport: &userAgentTransport{transport},
 		Timeout:   timeout,
 	}, nil
 }
@@ -112,13 +182,34 @@ func (f *HTTPClientFactory) createCustomClient(s *models.ProviderProxyStrategy) 
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 
+	// Fetch global noProxy settings to apply to custom proxies
+	var proxySettings models.ProxySettings
+	if err := models.DB.First(&proxySettings).Error; err == nil && proxySettings.NoProxy != "" {
+		originalProxy := transport.Proxy
+		transport.Proxy = func(req *http.Request) (*url.URL, error) {
+			if f.shouldBypassProxy(req.URL, proxySettings.NoProxy) {
+				return nil, nil
+			}
+			return originalProxy(req)
+		}
+	} else {
+		// Even without global noProxy, apply default bypass (localhost, etc.)
+		originalProxy := transport.Proxy
+		transport.Proxy = func(req *http.Request) (*url.URL, error) {
+			if f.shouldBypassProxy(req.URL, "") {
+				return nil, nil
+			}
+			return originalProxy(req)
+		}
+	}
+
 	timeout := time.Duration(s.TimeoutSeconds) * time.Second
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
 
 	return &http.Client{
-		Transport: transport,
+		Transport: &userAgentTransport{transport},
 		Timeout:   timeout,
 	}, nil
 }

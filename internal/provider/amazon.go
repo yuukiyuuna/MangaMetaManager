@@ -22,19 +22,15 @@ func (p *AmazonProvider) Name() string { return "Amazon" }
 func (p *AmazonProvider) GetCustomTagName() string { return "CustomAmazon" }
 
 func (p *AmazonProvider) Search(query string) ([]SearchResult, error) {
-	// client, err := p.factory.GetClient(p.ID())
-	// ... implementation ...
-	return []SearchResult{}, nil
+	return nil, ErrNotImplemented
 }
 
 func (p *AmazonProvider) GetDetails(id string) (*metadata.ComicInfo, error) {
-	// client, err := p.factory.GetClient(p.ID())
-	// ... implementation ...
-	return nil, nil
+	return nil, ErrNotImplemented
 }
 
 func (p *AmazonProvider) GetRelatedBooks(id string) ([]SearchResult, error) {
-	return []SearchResult{}, nil
+	return nil, ErrNotImplemented
 }
 
 func (p *AmazonProvider) ExtractIDFromURL(urlStr string) string {

@@ -9,7 +9,7 @@ type ProxySettings struct {
 	Host           string `json:"host"`
 	Port           int    `json:"port"`
 	Username       string `json:"username"`
-	Password       string `json:"-"` // Hidden in JSON
+	Password       string `json:"password,omitempty"` // Handled by API layer for hiding
 	NoProxy        string `json:"noProxy"`
 	TimeoutSeconds int    `json:"timeoutSeconds"`
 }
@@ -23,6 +23,6 @@ type ProviderProxyStrategy struct {
 	Host           string `json:"host"`
 	Port           int    `json:"port"`
 	Username       string `json:"username"`
-	Password       string `json:"-"`
+	Password       string `json:"password,omitempty"`
 	TimeoutSeconds int    `json:"timeoutSeconds"`
 }

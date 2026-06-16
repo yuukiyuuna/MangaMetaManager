@@ -285,7 +285,16 @@ func WriteRawComicInfo(pathStr string, rawData []byte, backup bool) error {
 		}
 		usedNames[newName] = true
 
-		w, err := zw.Create(newName)
+		// Create header preserving or overriding compression method
+		fh := f.FileHeader
+		fh.Name = newName
+		if isImage(newName) || fh.Method == zip.Store {
+			fh.Method = zip.Store
+		} else {
+			fh.Method = zip.Deflate
+		}
+
+		w, err := zw.CreateHeader(&fh)
 		if err != nil {
 			return err
 		}

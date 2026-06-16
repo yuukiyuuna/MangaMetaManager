@@ -67,7 +67,6 @@ func (p *BangumiProvider) Search(query string) ([]SearchResult, error) {
 	}
 
 	req, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
-	req.Header.Set("User-Agent", "MangaMetaManager/1.0")
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)

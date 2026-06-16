@@ -112,8 +112,19 @@ func NormalizeISBN13(input string) string {
 	
 	s := string(cleaned)
 	if len(s) == 10 {
-		// Basic ISBN-10 to 13 conversion (prepend 978, simple version without checksum recalc for now)
-		return "978" + s
+		// ISBN-10 to 13 conversion
+		prefix := "978" + s[:9]
+		sum := 0
+		for i, r := range prefix {
+			digit := int(r - '0')
+			if i%2 == 0 {
+				sum += digit
+			} else {
+				sum += digit * 3
+			}
+		}
+		check := (10 - (sum % 10)) % 10
+		return prefix + string(rune(check+'0'))
 	}
 	return s
 }

@@ -29,6 +29,7 @@ type TaskManager struct {
 }
 
 var GlobalTaskManager *TaskManager
+var SyncQueue chan func()
 
 func InitTaskManager() {
 	GlobalTaskManager = &TaskManager{
@@ -36,6 +37,15 @@ func InitTaskManager() {
 		taskChan: make(chan *Task, 100),
 	}
 	go GlobalTaskManager.worker()
+
+	SyncQueue = make(chan func(), 1000)
+	go syncWorker()
+}
+
+func syncWorker() {
+	for job := range SyncQueue {
+		job()
+	}
 }
 
 func (tm *TaskManager) AddTask(t *Task) {

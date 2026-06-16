@@ -22,15 +22,15 @@ func (p *FanzaProvider) Name() string { return "FANZA" }
 func (p *FanzaProvider) GetCustomTagName() string { return "CustomFanza" }
 
 func (p *FanzaProvider) Search(query string) ([]SearchResult, error) {
-	return []SearchResult{}, nil
+	return nil, ErrNotImplemented
 }
 
 func (p *FanzaProvider) GetDetails(id string) (*metadata.ComicInfo, error) {
-	return nil, nil
+	return nil, ErrNotImplemented
 }
 
 func (p *FanzaProvider) GetRelatedBooks(id string) ([]SearchResult, error) {
-	return []SearchResult{}, nil
+	return nil, ErrNotImplemented
 }
 
 func (p *FanzaProvider) ExtractIDFromURL(urlStr string) string {

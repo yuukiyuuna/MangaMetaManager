@@ -19,7 +19,9 @@ func InitDB(dbPath string) {
 	sqlDB, err := DB.DB()
 	if err == nil {
 		sqlDB.Exec("PRAGMA journal_mode=WAL;")
-		sqlDB.SetMaxOpenConns(1)
+		sqlDB.Exec("PRAGMA busy_timeout=5000;")
+		sqlDB.SetMaxOpenConns(10)
+		sqlDB.SetMaxIdleConns(10)
 	}
 
 	// Auto migrate models

@@ -17,6 +17,7 @@ import (
 	"github.com/yuukiyuuna/MangaMetaManager/internal/provider"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/scanner"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/utils"
+	"gorm.io/gorm"
 )
 
 type MangaHandler struct{}
@@ -252,44 +253,14 @@ func (h *MangaHandler) UpdateBook(c *gin.Context) {
 
 	fmt.Printf("[API] Manual Update Book %s: %v\n", id, input)
 
-	mapping := map[string]string{
-		"title":         "title",
-		"originalTitle": "original_title",
-		"series":        "series",
-		"number":        "number",
-		"author":         "author",
-		"translator":     "translator",
-		"publisher":      "publisher",
-		"genre":          "genre",
-		"tags":           "tags",
-		"summary":        "summary",
-
-		"volume":        "volume",
-		"year":          "year",
-		"month":         "month",
-		"day":           "day",
-		"web":           "web",
-		"language":      "language",
-		"pageCount":     "page_count",
-		"manga":         "manga",
-		"ageRating":     "age_rating",
-		"gtin":          "gtin",
-		"characters":    "characters",
-		"teams":         "teams",
-	}
 	dbUpdates := make(map[string]interface{})
-	if val, ok := input["manga"]; ok {
-		dbUpdates["type"] = val
-	}
-	if val, ok := input["type"]; ok {
-		dbUpdates["type"] = val
-	}
-
-	for jsonKey, dbKey := range mapping {
-		if jsonKey == "manga" { continue } // Handled manually
-		if val, ok := input[jsonKey]; ok {
-			dbUpdates[dbKey] = val
+	for jsonKey, val := range input {
+		if jsonKey == "manga" {
+			dbUpdates["type"] = val
+			continue
 		}
+		dbKey := utils.CamelToSnake(jsonKey)
+		dbUpdates[dbKey] = val
 	}
 
 	if err := models.DB.Model(&book).Updates(dbUpdates).Error; err != nil {
@@ -299,7 +270,9 @@ func (h *MangaHandler) UpdateBook(c *gin.Context) {
 	
 	// Reload and Sync
 	models.DB.First(&book, id)
-	go scanner.SyncBookMetadata(&book, h.getBackupSetting())
+	core.SyncQueue <- func() {
+		scanner.SyncBookMetadata(&book, h.getBackupSetting())
+	}
 
 	c.JSON(http.StatusOK, book)
 }
@@ -340,7 +313,9 @@ func (h *MangaHandler) ScrapeBook(c *gin.Context) {
 	book.Status = "Scraped"
 
 	models.DB.Save(&book)
-	go scanner.SyncBookMetadata(&book, h.getBackupSetting())
+	core.SyncQueue <- func() {
+		scanner.SyncBookMetadata(&book, h.getBackupSetting())
+	}
 
 	c.JSON(http.StatusOK, book)
 	}
@@ -355,25 +330,30 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 		return
 	}
 
+	var series models.MangaSeries
+	if err := models.DB.First(&series, seriesId).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Series not found"})
+		return
+	}
+
+	// Prerequisite: Series must have been manually scraped first (indicated by Status and Web link)
+	if series.Status != "Scraped" || series.Web == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Please scrape series metadata manually first to establish a provider link."})
+		return
+	}
+
+	p, err := provider.GetProvider(input.ProviderID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid provider"})
+		return
+	}
+
 	task := &core.Task{
 		ID:   fmt.Sprintf("auto-scrape-%s-%d", seriesId, time.Now().Unix()),
 		Type: core.TaskScrape,
 	}
 
 	task.Work = func() {
-		var err error
-		p, err := provider.GetProvider(input.ProviderID)
-		if err != nil { return }
-
-		var series models.MangaSeries
-		if err = models.DB.First(&series, seriesId).Error; err != nil { return }
-
-		// Prerequisite: Series must have a provider source
-		if series.Web == "" {
-			fmt.Printf("[AutoScrape] Aborted: Series %s has no source link\n", series.Title)
-			return
-		}
-
 		// Use Provider interface to extract ID
 		subjectID := p.ExtractIDFromURL(series.Web)
 		if subjectID == "" {
@@ -383,7 +363,7 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 
 		// Fetch Ground Truth related books with retries
 		var relatedBooks []provider.SearchResult
-		// err is already declared above
+		var err error
 		for attempt := 1; attempt <= 3; attempt++ {
 			relatedBooks, err = p.GetRelatedBooks(subjectID)
 			if err == nil {
@@ -647,6 +627,11 @@ func (h *MangaHandler) UpdateBookXML(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write ZIP: " + err.Error()})
 		return
 	}
+
+	if stat, err := os.Stat(book.Path); err == nil {
+		book.FileModTime = stat.ModTime().Unix()
+		book.FileSize = stat.Size()
+	}
 	
 	book.Title = info.Title
 	book.OriginalTitle = info.OriginalTitle
@@ -720,11 +705,46 @@ func (h *MangaHandler) AddLibraryFolder(c *gin.Context) {
 
 func (h *MangaHandler) RemoveLibraryFolder(c *gin.Context) {
 	id := c.Param("id")
-	if err := models.DB.Delete(&models.LibraryFolder{}, id).Error; err != nil {
+	var folder models.LibraryFolder
+	if err := models.DB.First(&folder, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found"})
+		return
+	}
+
+	// Delete all series and books associated with this folder path
+	// We use a transaction for safety
+	err := models.DB.Transaction(func(tx *gorm.DB) error {
+		// Find series in this folder. Match exactly or as a subfolder.
+		pattern := folder.Path + "/%"
+		
+		var seriesIDs []uint
+		tx.Model(&models.MangaSeries{}).Where("path = ? OR path LIKE ?", folder.Path, pattern).Pluck("id", &seriesIDs)
+
+		if len(seriesIDs) > 0 {
+			// Delete books belonging to these series
+			if err := tx.Where("series_id IN ?", seriesIDs).Delete(&models.MangaBook{}).Error; err != nil {
+				return err
+			}
+			// Delete the series themselves
+			if err := tx.Where("id IN ?", seriesIDs).Delete(&models.MangaSeries{}).Error; err != nil {
+				return err
+			}
+		}
+
+		// 2. Delete the LibraryFolder record
+		if err := tx.Delete(&models.LibraryFolder{}, id).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+
+	c.JSON(http.StatusOK, gin.H{"status": "deleted and cleaned up"})
 }
 
 func (h *MangaHandler) CleanLibrary(c *gin.Context) {
