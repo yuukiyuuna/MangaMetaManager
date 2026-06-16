@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
@@ -85,8 +86,52 @@ func TestWriteComicInfo_Backup(t *testing.T) {
 		t.Fatalf("WriteComicInfo failed: %v", err)
 	}
 
-	// Check if .bak exists
-	if _, err := os.Stat(tmpZip + ".bak"); os.IsNotExist(err) {
-		t.Errorf("Backup file .bak was not created")
+	backups, err := filepath.Glob(tmpZip + ".*.bak")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 1 {
+		t.Fatalf("expected one timestamped backup, got %d", len(backups))
+	}
+	if !strings.HasPrefix(filepath.Base(backups[0]), filepath.Base(tmpZip)+".") || !strings.HasSuffix(backups[0], ".bak") {
+		t.Fatalf("unexpected backup name: %s", backups[0])
+	}
+}
+
+func TestWriteComicInfo_BackupDoesNotOverwrite(t *testing.T) {
+	tmpZip := filepath.Join(t.TempDir(), "test_backup_multi.zip")
+	f, err := os.Create(tmpZip)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zw := zip.NewWriter(f)
+	w, err := zw.Create("test.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("test")); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	info := &metadata.ComicInfo{Title: "Backup Test"}
+	if err := WriteComicInfo(tmpZip, info, true); err != nil {
+		t.Fatalf("first WriteComicInfo failed: %v", err)
+	}
+	if err := WriteComicInfo(tmpZip, info, true); err != nil {
+		t.Fatalf("second WriteComicInfo failed: %v", err)
+	}
+
+	backups, err := filepath.Glob(tmpZip + ".*.bak")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 2 {
+		t.Fatalf("expected two backups, got %d: %v", len(backups), backups)
 	}
 }

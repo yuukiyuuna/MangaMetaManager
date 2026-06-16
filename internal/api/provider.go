@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -42,7 +43,7 @@ func (h *ProviderHandler) Search(c *gin.Context) {
 
 	// Pre-clean query
 	query = utils.BuildBookSearchQuery("", query)
-	
+
 	p, err := provider.GetProvider(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -51,6 +52,10 @@ func (h *ProviderHandler) Search(c *gin.Context) {
 
 	results, err := p.Search(query)
 	if err != nil {
+		if errors.Is(err, provider.ErrNotImplemented) {
+			c.JSON(http.StatusNotImplemented, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -69,6 +74,10 @@ func (h *ProviderHandler) GetDetails(c *gin.Context) {
 
 	details, err := p.GetDetails(metadataID)
 	if err != nil {
+		if errors.Is(err, provider.ErrNotImplemented) {
+			c.JSON(http.StatusNotImplemented, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

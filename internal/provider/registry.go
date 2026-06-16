@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -32,9 +33,24 @@ func ListProviders() []Provider {
 	defer mu.RUnlock()
 	list := make([]Provider, 0, len(providers))
 	for _, p := range providers {
+		if !IsImplemented(p.ID()) {
+			continue
+		}
 		list = append(list, p)
 	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].Name() < list[j].Name()
+	})
 	return list
+}
+
+func IsImplemented(id string) bool {
+	switch id {
+	case "bangumi":
+		return true
+	default:
+		return false
+	}
 }
 
 func InitProviders() {

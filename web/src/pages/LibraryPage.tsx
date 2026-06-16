@@ -15,6 +15,14 @@ import { showToast } from '../components/Toast';
 type SortField = 'title' | 'author' | 'status' | 'bookCount';
 type SortOrder = 'asc' | 'desc';
 
+const getErrorMessage = (err: unknown, fallback: string) => {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const response = (err as { response?: { data?: { error?: string } } }).response;
+    return response?.data?.error || fallback;
+  }
+  return fallback;
+};
+
 const SortIcon = ({ field, sortField, sortOrder }: { field: SortField, sortField: SortField, sortOrder: SortOrder }) => {
   if (sortField !== field) return null;
   return sortOrder === 'asc' ? <ArrowUp className="ml-1 w-4 h-4 text-blue-500" /> : <ArrowDown className="ml-1 w-4 h-4 text-blue-500" />;
@@ -79,6 +87,7 @@ const LibraryPage: React.FC = () => {
       setHasMore(newData.length === 20);
     } catch (err) {
       console.error(err);
+      showToast(getErrorMessage(err, 'Failed to load library.'), 'error');
     }
     setLoading(false);
   };
@@ -95,7 +104,7 @@ const LibraryPage: React.FC = () => {
       showToast('Scan started in the background!');
     } catch (err) {
       console.error(err);
-      showToast('Failed to start scan.', 'error');
+      showToast(getErrorMessage(err, 'Failed to start scan.'), 'error');
     }
   };
 
@@ -106,7 +115,7 @@ const LibraryPage: React.FC = () => {
       setTimeout(handleRefresh, 1000);
     } catch (err) {
       console.error(err);
-      showToast('Failed to clean database.', 'error');
+      showToast(getErrorMessage(err, 'Failed to clean database.'), 'error');
     }
   };
 
@@ -118,7 +127,7 @@ const LibraryPage: React.FC = () => {
       handleRefresh();
     } catch (err) {
       console.error(err);
-      showToast('Failed to remove series.', 'error');
+      showToast(getErrorMessage(err, 'Failed to remove series.'), 'error');
     }
     setDeletingSeriesId(null);
   };
@@ -148,6 +157,37 @@ const LibraryPage: React.FC = () => {
   useEffect(() => {
     handleRefresh();
   }, [sortField, sortOrder]);
+
+  const sortedSeriesList = [...seriesList].sort((a, b) => {
+    let left: string | number;
+    let right: string | number;
+
+    switch (sortField) {
+      case 'bookCount':
+        left = a.books?.length || 0;
+        right = b.books?.length || 0;
+        break;
+      case 'author':
+        left = a.author || '';
+        right = b.author || '';
+        break;
+      case 'status':
+        left = a.status || '';
+        right = b.status || '';
+        break;
+      case 'title':
+      default:
+        left = a.title || '';
+        right = b.title || '';
+    }
+
+    if (typeof left === 'number' && typeof right === 'number') {
+      return sortOrder === 'asc' ? left - right : right - left;
+    }
+    return sortOrder === 'asc'
+      ? String(left).localeCompare(String(right))
+      : String(right).localeCompare(String(left));
+  });
 
   return (
     <div className="space-y-6">
@@ -213,7 +253,7 @@ const LibraryPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {seriesList.map((series, index) => (
+              {sortedSeriesList.map((series, index) => (
                 <React.Fragment key={series.ID}>
                   <SeriesRow 
                     series={series}
@@ -223,7 +263,7 @@ const LibraryPage: React.FC = () => {
                     onAutoScrape={() => setAutoScrapeSeriesId(series.ID)}
                     onScrape={() => openScrapeModal(series.ID, 'series', series.title)}
                     onDelete={() => setDeletingSeriesId(series.ID)}
-                    {...(index === seriesList.length - 1 ? { ref: lastElementRef } : {})}
+                    {...(index === sortedSeriesList.length - 1 ? { ref: lastElementRef } : {})}
                   />
                   {expandedSeries.has(series.ID) && (
                     <tr>

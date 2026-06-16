@@ -2,11 +2,41 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/network"
 )
+
+func validAPIProxyType(proxyType string) bool {
+	switch strings.ToLower(proxyType) {
+	case "http", "https", "socks5":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateProviderProxy(input models.ProviderProxyStrategy) string {
+	switch input.Strategy {
+	case "inherit", "disabled":
+		return ""
+	case "custom":
+		if !validAPIProxyType(input.Type) {
+			return "Invalid proxy type"
+		}
+		if input.Host == "" {
+			return "Host cannot be empty when custom proxy is used"
+		}
+		if input.Port <= 0 || input.Port > 65535 {
+			return "Invalid port number"
+		}
+		return ""
+	default:
+		return "Invalid proxy strategy"
+	}
+}
 
 type ProxyHandler struct {
 	factory *network.HTTPClientFactory
@@ -51,6 +81,10 @@ func (h *ProxyHandler) UpdateGlobalProxy(c *gin.Context) {
 
 	// Validation
 	if input.Enabled {
+		if !validAPIProxyType(input.Type) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid proxy type"})
+			return
+		}
 		if input.Host == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Host cannot be empty when proxy is enabled"})
 			return
@@ -64,14 +98,20 @@ func (h *ProxyHandler) UpdateGlobalProxy(c *gin.Context) {
 	var settings models.ProxySettings
 	result := models.DB.First(&settings)
 	if result.Error != nil {
-		models.DB.Create(&input)
+		if err := models.DB.Create(&input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 		settings = input
 	} else {
 		// Preserve Password if not provided in input
 		if input.Password == "" {
 			input.Password = settings.Password
 		}
-		models.DB.Model(&settings).Updates(input)
+		if err := models.DB.Model(&settings).Updates(input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	h.factory.InvalidateCache() // Invalidate cache after update
@@ -132,17 +172,27 @@ func (h *ProxyHandler) UpdateProviderProxy(c *gin.Context) {
 		return
 	}
 	input.ProviderID = id
+	if msg := validateProviderProxy(input); msg != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		return
+	}
 
 	var strategy models.ProviderProxyStrategy
 	result := models.DB.Where("provider_id = ?", id).First(&strategy)
 	if result.Error != nil {
-		models.DB.Create(&input)
+		if err := models.DB.Create(&input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 		strategy = input
 	} else {
 		if input.Password == "" {
 			input.Password = strategy.Password
 		}
-		models.DB.Model(&strategy).Updates(input)
+		if err := models.DB.Model(&strategy).Updates(input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	h.factory.InvalidateCache() // Invalidate cache after update

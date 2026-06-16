@@ -12,7 +12,7 @@ interface SeriesRowProps {
   onDelete: () => void;
 }
 
-const SeriesRow: React.FC<SeriesRowProps> = ({
+const SeriesRow = React.forwardRef<HTMLTableRowElement, SeriesRowProps>(({
   series,
   isExpanded,
   onToggleExpand,
@@ -20,9 +20,9 @@ const SeriesRow: React.FC<SeriesRowProps> = ({
   onAutoScrape,
   onScrape,
   onDelete
-}) => {
+}, ref) => {
   return (
-    <tr className="hover:bg-blue-50/30 transition-colors group">
+    <tr ref={ref} className="hover:bg-blue-50/30 transition-colors group">
       <td className="px-6 py-5 text-center">
         <button onClick={onToggleExpand} className="text-gray-300 hover:text-blue-600 transition-colors">
           {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
@@ -83,6 +83,8 @@ const SeriesRow: React.FC<SeriesRowProps> = ({
       </td>
     </tr>
   );
-};
+});
+
+SeriesRow.displayName = 'SeriesRow';
 
 export default SeriesRow;

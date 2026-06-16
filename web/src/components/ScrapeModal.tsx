@@ -24,6 +24,15 @@ interface SearchResult {
   releaseDate?: string;
 }
 
+const getErrorMessage = (err: unknown, fallback: string) => {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const response = (err as { response?: { data?: { error?: string } } }).response;
+    return response?.data?.error || fallback;
+  }
+  if (err instanceof Error) return err.message;
+  return fallback;
+};
+
 const ScrapeModal: React.FC<ScrapeModalProps> = ({ itemId, itemType, initialTitle, onClose, onScraped }) => {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState('');
@@ -63,7 +72,7 @@ const ScrapeModal: React.FC<ScrapeModalProps> = ({ itemId, itemType, initialTitl
       setResults(res.data);
     } catch (err) {
       console.error(err);
-      showToast('Search failed: ' + (err as any).message, 'error');
+      showToast(getErrorMessage(err, 'Search failed.'), 'error');
     }
     setLoading(false);
   };
@@ -137,7 +146,7 @@ const ScrapeModal: React.FC<ScrapeModalProps> = ({ itemId, itemType, initialTitl
       setPreviewMode(true);
     } catch (err) {
       console.error(err);
-      showToast('Failed to load details for comparison', 'error');
+      showToast(getErrorMessage(err, 'Failed to load details for comparison'), 'error');
     }
     setLoading(false);
   };
@@ -159,7 +168,7 @@ const ScrapeModal: React.FC<ScrapeModalProps> = ({ itemId, itemType, initialTitl
       onClose();
     } catch (err) {
       console.error(err);
-      showToast('Save failed: ' + (err as any).message, 'error');
+      showToast(getErrorMessage(err, 'Save failed.'), 'error');
     }
     setSaving(false);
   };

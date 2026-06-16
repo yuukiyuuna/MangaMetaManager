@@ -240,8 +240,11 @@ func (f *HTTPClientFactory) buildProxyURL(pType, host string, port int, user, pa
 
 func (f *HTTPClientFactory) shouldBypassProxy(targetURL *url.URL, noProxy string) bool {
 	host := strings.ToLower(targetURL.Hostname())
+	if ip := net.ParseIP(host); ip != nil && isLocalNetworkIP(ip) {
+		return true
+	}
 	bypassList := strings.Split(noProxy, ",")
-	
+
 	// Default bypass
 	defaultBypass := []string{"localhost", "127.0.0.1", "::1"}
 	for _, b := range defaultBypass {
@@ -255,7 +258,7 @@ func (f *HTTPClientFactory) shouldBypassProxy(targetURL *url.URL, noProxy string
 		if b == "" {
 			continue
 		}
-		
+
 		// If b starts with a dot, match suffix
 		if strings.HasPrefix(b, ".") {
 			if strings.HasSuffix(host, b) || host == b[1:] {
@@ -273,4 +276,8 @@ func (f *HTTPClientFactory) shouldBypassProxy(targetURL *url.URL, noProxy string
 		}
 	}
 	return false
+}
+
+func isLocalNetworkIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
 }

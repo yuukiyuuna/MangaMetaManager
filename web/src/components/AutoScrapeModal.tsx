@@ -14,6 +14,14 @@ interface Provider {
   name: string;
 }
 
+const getErrorMessage = (err: unknown, fallback: string) => {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const response = (err as { response?: { data?: { error?: string } } }).response;
+    return response?.data?.error || fallback;
+  }
+  return fallback;
+};
+
 const AutoScrapeModal: React.FC<AutoScrapeModalProps> = ({ seriesId, onClose, onComplete }) => {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState('');
@@ -21,10 +29,34 @@ const AutoScrapeModal: React.FC<AutoScrapeModalProps> = ({ seriesId, onClose, on
   const [options, setOptions] = useState({
     updateTitle: true,
     updateAuthor: true,
+    updateTranslator: true,
     updateSummary: true,
     updatePublisher: true,
     updateGenre: true,
+    updateDate: true,
+    updateWeb: true,
+    updateLanguage: true,
+    updatePageCount: true,
+    updateType: true,
+    updateAgeRating: true,
+    updateGtin: true,
   });
+
+  const optionLabels: Record<string, string> = {
+    updateTitle: 'Title / Original Title',
+    updateAuthor: 'Author',
+    updateTranslator: 'Translator',
+    updateSummary: 'Summary',
+    updatePublisher: 'Publisher',
+    updateGenre: 'Genre / Tags',
+    updateDate: 'Release Date',
+    updateWeb: 'Web URL',
+    updateLanguage: 'Language',
+    updatePageCount: 'Page Count',
+    updateType: 'Type',
+    updateAgeRating: 'Age Rating',
+    updateGtin: 'GTIN / ISBN',
+  };
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -51,7 +83,7 @@ const AutoScrapeModal: React.FC<AutoScrapeModalProps> = ({ seriesId, onClose, on
       onClose();
     } catch (err) {
       console.error(err);
-      showToast('Failed to start auto scrape.', 'error');
+      showToast(getErrorMessage(err, 'Failed to start auto scrape.'), 'error');
     }
     setLoading(false);
   };
@@ -97,7 +129,7 @@ const AutoScrapeModal: React.FC<AutoScrapeModalProps> = ({ seriesId, onClose, on
                     className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 transition-colors cursor-pointer"
                   />
                   <span className="text-sm font-medium text-gray-700 group-hover:text-purple-600 transition-colors capitalize">
-                    {key.replace('update', '')}
+                    {optionLabels[key] || key.replace('update', '')}
                   </span>
                 </label>
               ))}

@@ -33,10 +33,10 @@ const AppSettingsSection: React.FC<AppSettingsSectionProps> = ({ initialData }) 
             </label>
             <p className="text-gray-500 mt-1">
               When saving metadata, the app restructures (flattens) the ZIP/CBZ structure to ensure 100% compatibility with Komga. 
-              Enabling this will create a <code className="bg-gray-100 px-1 rounded">.bak</code> copy of your original file before the first modification.
+              Enabling this will create a timestamped <code className="bg-gray-100 px-1 rounded">.bak</code> copy before every archive rewrite.
               <br />
               <span className="text-sm italic">
-                写入元数据时为了兼容 Komga 会展平压缩包结构。开启此项后，程序会在修改前生成一份 .bak 备份，以防万一。
+                写入元数据时为了兼容 Komga 会展平压缩包结构。开启此项后，程序每次修改前都会生成一份带时间戳的 .bak 备份，以避免覆盖旧备份。
               </span>
             </p>
           </div>

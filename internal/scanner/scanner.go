@@ -9,6 +9,7 @@ import (
 
 	"github.com/yuukiyuuna/MangaMetaManager/internal/core"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
+	"gorm.io/gorm"
 )
 
 func ScanLibrary(task *core.Task) error {
@@ -27,14 +28,16 @@ func ScanLibrary(task *core.Task) error {
 			if err != nil {
 				return err
 			}
-			
+
 			if !info.IsDir() {
 				name := filepath.Base(path)
-				
+
 				// Cleanup abandoned temp files
 				if strings.HasPrefix(name, "mmm-tmp-") || strings.HasPrefix(name, "mmm-raw-tmp-") {
 					log.Printf("Cleaning up abandoned temp file: %s", path)
-					os.Remove(path)
+					if err := os.Remove(path); err != nil {
+						log.Printf("Failed to remove abandoned temp file %s: %v", path, err)
+					}
 					return nil // Skip further processing for temp files
 				}
 
@@ -43,13 +46,16 @@ func ScanLibrary(task *core.Task) error {
 					if task != nil {
 						core.GlobalTaskManager.UpdateProgress(task, count, 0, name) // 0 total for indeterminate progress
 					}
-					processMangaFile(path, info)
+					if err := processMangaFile(path, info); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
 		})
 		if err != nil {
 			log.Printf("Error scanning folder %s: %v", folder.Path, err)
+			return err
 		}
 	}
 	return nil
@@ -62,7 +68,7 @@ func CleanupTempFiles() {
 	}
 
 	for _, folder := range folders {
-		filepath.Walk(folder.Path, func(path string, info os.FileInfo, err error) error {
+		if err := filepath.Walk(folder.Path, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}
@@ -70,20 +76,26 @@ func CleanupTempFiles() {
 				name := filepath.Base(path)
 				if strings.HasPrefix(name, "mmm-tmp-") || strings.HasPrefix(name, "mmm-raw-tmp-") {
 					log.Printf("Cleaning up abandoned temp file: %s", path)
-					os.Remove(path)
+					if err := os.Remove(path); err != nil {
+						log.Printf("Failed to remove abandoned temp file %s: %v", path, err)
+					}
 				}
 			}
 			return nil
-		})
+		}); err != nil {
+			log.Printf("Error cleaning temp files in %s: %v", folder.Path, err)
+		}
 	}
 }
 
 func CleanLibrary(task *core.Task) error {
 	log.Println("Starting database clean...")
-	
+
 	// 1. Clean Series
 	var seriesList []models.MangaSeries
-	if err := models.DB.Find(&seriesList).Error; err == nil {
+	if err := models.DB.Find(&seriesList).Error; err != nil {
+		return err
+	} else {
 		total := len(seriesList)
 		for i, s := range seriesList {
 			if task != nil {
@@ -91,15 +103,23 @@ func CleanLibrary(task *core.Task) error {
 			}
 			if _, err := os.Stat(s.Path); os.IsNotExist(err) {
 				log.Printf("Removing orphaned series: %s", s.Path)
-				models.DB.Unscoped().Delete(&s)
-				models.DB.Unscoped().Where("series_id = ?", s.ID).Delete(&models.MangaBook{})
+				if err := models.DB.Transaction(func(tx *gorm.DB) error {
+					if err := tx.Unscoped().Where("series_id = ?", s.ID).Delete(&models.MangaBook{}).Error; err != nil {
+						return err
+					}
+					return tx.Unscoped().Delete(&s).Error
+				}); err != nil {
+					return err
+				}
 			}
 		}
 	}
 
 	// 2. Clean Books
 	var books []models.MangaBook
-	if err := models.DB.Find(&books).Error; err == nil {
+	if err := models.DB.Find(&books).Error; err != nil {
+		return err
+	} else {
 		total := len(books)
 		for i, b := range books {
 			if task != nil {
@@ -107,7 +127,9 @@ func CleanLibrary(task *core.Task) error {
 			}
 			if _, err := os.Stat(b.Path); os.IsNotExist(err) {
 				log.Printf("Removing orphaned book: %s", b.Path)
-				models.DB.Unscoped().Delete(&b)
+				if err := models.DB.Unscoped().Delete(&b).Error; err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -116,10 +138,10 @@ func CleanLibrary(task *core.Task) error {
 	return nil
 }
 
-func processMangaFile(path string, info os.FileInfo) {
+func processMangaFile(path string, info os.FileInfo) error {
 	dir := filepath.Dir(path)
 	filename := filepath.Base(path)
-	
+
 	var series models.MangaSeries
 	result := models.DB.Where("path = ?", dir).First(&series)
 	if result.Error != nil {
@@ -129,15 +151,17 @@ func processMangaFile(path string, info os.FileInfo) {
 				Title: filepath.Base(dir),
 			},
 		}
-		models.DB.Create(&series)
+		if err := models.DB.Create(&series).Error; err != nil {
+			return err
+		}
 	}
 
 	var book models.MangaBook
 	result = models.DB.Where("path = ?", path).First(&book)
-	
+
 	// Incremental scan: check if file has changed
 	if result.Error == nil && book.FileModTime == info.ModTime().Unix() && book.FileSize == info.Size() {
-		return
+		return nil
 	}
 
 	comicInfo, err := ReadComicInfo(path)
@@ -165,7 +189,7 @@ func processMangaFile(path string, info os.FileInfo) {
 		newBook.Author = comicInfo.Writer
 		newBook.Summary = comicInfo.Summary
 		newBook.Status = "Scraped"
-		
+
 		// Map back ComicInfo.Manga to our Type
 		if comicInfo.Manga == "No" {
 			newBook.Type = "小说"
@@ -173,9 +197,13 @@ func processMangaFile(path string, info os.FileInfo) {
 	}
 
 	if result.Error != nil {
-		models.DB.Create(&newBook)
+		if err := models.DB.Create(&newBook).Error; err != nil {
+			return err
+		}
 	} else {
-		models.DB.Model(&book).Updates(newBook)
+		if err := models.DB.Model(&book).Updates(newBook).Error; err != nil {
+			return err
+		}
 	}
 
 	// Sync series metadata to DB if available
@@ -185,6 +213,10 @@ func processMangaFile(path string, info os.FileInfo) {
 		series.Summary = comicInfo.Summary
 		series.Genre = comicInfo.Genre
 		series.Status = "Scraped"
-		models.DB.Save(&series)
+		if err := models.DB.Save(&series).Error; err != nil {
+			return err
+		}
 	}
+
+	return nil
 }

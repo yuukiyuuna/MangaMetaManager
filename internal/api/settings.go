@@ -41,10 +41,16 @@ func (h *SettingsHandler) UpdateAppSettings(c *gin.Context) {
 	var settings models.AppSettings
 	result := models.DB.First(&settings)
 	if result.Error != nil {
-		models.DB.Create(&input)
+		if err := models.DB.Create(&input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 		settings = input
 	} else {
-		models.DB.Model(&settings).Updates(input)
+		if err := models.DB.Model(&settings).Updates(input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, settings)

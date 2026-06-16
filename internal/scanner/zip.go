@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/yuukiyuuna/MangaMetaManager/internal/metadata"
 )
@@ -91,7 +92,7 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo, backup bool) error
 	defer tmpFile.Close()
 
 	zw := zip.NewWriter(tmpFile)
-	
+
 	// Open original file
 	r, err := zip.OpenReader(pathStr)
 	if err != nil {
@@ -101,7 +102,7 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo, backup bool) error
 
 	// Hardcode root path for ComicInfo.xml to ensure Komga compatibility
 	xmlPath := "ComicInfo.xml"
-	
+
 	// Collision tracking
 	usedNames := make(map[string]bool)
 	usedNames[xmlPath] = true // Reserve the XML name
@@ -112,7 +113,7 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo, backup bool) error
 		if f.FileInfo().IsDir() || strings.ToLower(path.Base(f.Name)) == "comicinfo.xml" {
 			continue
 		}
-		
+
 		// Skip junk files
 		baseName := path.Base(f.Name)
 		lowerName := strings.ToLower(baseName)
@@ -129,7 +130,7 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo, backup bool) error
 			if dirName != "." && dirName != "" && dirName != "/" {
 				newName = fmt.Sprintf("%s_%s", dirName, baseName)
 			}
-			
+
 			// If still colliding, append a counter
 			counter := 1
 			for usedNames[newName] {
@@ -146,12 +147,12 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo, backup bool) error
 		if err != nil {
 			return err
 		}
-		
+
 		rc, err := f.Open()
 		if err != nil {
 			return err
 		}
-		
+
 		_, err = io.Copy(w, rc)
 		rc.Close()
 		if err != nil {
@@ -164,12 +165,12 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo, backup bool) error
 	if err != nil {
 		return err
 	}
-	
+
 	data, err := xml.MarshalIndent(info, "", "  ")
 	if err != nil {
 		return err
 	}
-	
+
 	// Add XML header
 	header := []byte(xml.Header)
 	if _, err := w.Write(header); err != nil {
@@ -182,10 +183,14 @@ func WriteComicInfo(pathStr string, info *metadata.ComicInfo, backup bool) error
 	if err := zw.Close(); err != nil {
 		return err
 	}
-	
+
 	// Replace original file
-	r.Close() // Close before rename for Windows compatibility (though on Linux it's less critical)
-	tmpFile.Close()
+	if err := r.Close(); err != nil {
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
 	return os.Rename(tmpFile.Name(), pathStr)
 }
 
@@ -210,7 +215,7 @@ func backupFile(src string) error {
 	}
 	defer s.Close()
 
-	dst := src + ".bak"
+	dst := backupPath(src)
 	d, err := os.Create(dst)
 	if err != nil {
 		return err
@@ -221,6 +226,21 @@ func backupFile(src string) error {
 		return err
 	}
 	return nil
+}
+
+func backupPath(src string) string {
+	timestamp := time.Now().Format("20060102-150405")
+	base := fmt.Sprintf("%s.%s.bak", src, timestamp)
+	if _, err := os.Stat(base); os.IsNotExist(err) {
+		return base
+	}
+
+	for counter := 1; ; counter++ {
+		candidate := fmt.Sprintf("%s.%s.%d.bak", src, timestamp, counter)
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+	}
 }
 
 func WriteRawComicInfo(pathStr string, rawData []byte, backup bool) error {
@@ -243,7 +263,7 @@ func WriteRawComicInfo(pathStr string, rawData []byte, backup bool) error {
 	defer tmpFile.Close()
 
 	zw := zip.NewWriter(tmpFile)
-	
+
 	// Open original file
 	r, err := zip.OpenReader(pathStr)
 	if err != nil {
@@ -253,14 +273,14 @@ func WriteRawComicInfo(pathStr string, rawData []byte, backup bool) error {
 
 	xmlPath := "ComicInfo.xml"
 	usedNames := make(map[string]bool)
-	usedNames[xmlPath] = true 
+	usedNames[xmlPath] = true
 
 	// Copy and flatten
 	for _, f := range r.File {
 		if f.FileInfo().IsDir() || strings.ToLower(path.Base(f.Name)) == "comicinfo.xml" {
 			continue
 		}
-		
+
 		// Skip junk files
 		baseName := path.Base(f.Name)
 		lowerName := strings.ToLower(baseName)
@@ -321,8 +341,12 @@ func WriteRawComicInfo(pathStr string, rawData []byte, backup bool) error {
 	if err := zw.Close(); err != nil {
 		return err
 	}
-	
-	r.Close() 
-	tmpFile.Close()
+
+	if err := r.Close(); err != nil {
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
 	return os.Rename(tmpFile.Name(), pathStr)
 }

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"log"
 	"sync"
 )
@@ -13,19 +14,19 @@ const (
 )
 
 type Task struct {
-	ID       string   `json:"id"`
-	Type     TaskType `json:"type"`
-	Status   string   `json:"status"` // pending, running, completed, failed
-	Message  string   `json:"message"`
-	Progress int      `json:"progress"`
-	Total    int      `json:"total"`
-	Work     func()   `json:"-"`
+	ID       string       `json:"id"`
+	Type     TaskType     `json:"type"`
+	Status   string       `json:"status"` // pending, running, completed, failed
+	Message  string       `json:"message"`
+	Progress int          `json:"progress"`
+	Total    int          `json:"total"`
+	Work     func() error `json:"-"`
 }
 
 type TaskManager struct {
-	tasks      []*Task
-	taskChan   chan *Task
-	mu         sync.RWMutex
+	tasks    []*Task
+	taskChan chan *Task
+	mu       sync.RWMutex
 }
 
 var GlobalTaskManager *TaskManager
@@ -60,10 +61,26 @@ func (tm *TaskManager) worker() {
 	for t := range tm.taskChan {
 		tm.updateTask(t, "running", "")
 		log.Printf("Starting task: %s (%s)", t.Type, t.ID)
-		t.Work()
+		if err := runTask(t); err != nil {
+			tm.updateTask(t, "failed", err.Error())
+			log.Printf("Task failed: %s (%s): %v", t.Type, t.ID, err)
+			continue
+		}
 		tm.updateTask(t, "completed", "Done")
 		log.Printf("Finished task: %s (%s)", t.Type, t.ID)
 	}
+}
+
+func runTask(t *Task) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("task panic: %v", r)
+		}
+	}()
+	if t.Work == nil {
+		return fmt.Errorf("task has no work")
+	}
+	return t.Work()
 }
 
 func (tm *TaskManager) updateTask(t *Task, status, msg string) {

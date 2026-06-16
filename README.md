@@ -5,11 +5,11 @@ MangaMetaManager is a modern, local manga metadata management tool inspired by t
 ## 🌟 Features
 
 - **Resource Management**: Scan and manage multiple folders for your manga collection.
-- **Metadata Fetching**: Built-in support for multiple providers including Amazon, FANZA, and Bangumi.
+- **Metadata Fetching**: Built-in Bangumi support. Amazon and FANZA providers are scaffolded but not implemented yet.
 - **ComicInfo.xml Support**:
-  - Reads and writes standard metadata to your archives safely.
-  - **Smart Pathing**: Automatically detects the best location for `ComicInfo.xml` inside archives, supporting nested folder structures (e.g., placing it alongside images in a subfolder).
-  - Maintains existing metadata locations when updating.
+  - Reads standard metadata from archives.
+  - Writes `ComicInfo.xml` at the archive root for Komga compatibility.
+  - Rewrites ZIP/CBZ archives by flattening nested files; enable timestamped backups before metadata rewrites if you need rollback safety.
 - **Modern Web Interface**: Beautiful, high-performance UI built with React 19, Vite, and Tailwind CSS.
 - **Powerful CLI**: Full control from the terminal for automation and advanced management.
 - **Global Proxy**: Integrated proxy support (HTTP, HTTPS, SOCKS5) with provider-level overrides and connectivity testing.
@@ -52,6 +52,8 @@ Start the web server to access the GUI:
 ```
 Then open [http://localhost:8080](http://localhost:8080) in your browser.
 
+By default the server listens on `0.0.0.0`. Use `--host 127.0.0.1` or configure `server.host` if you only want local access.
+
 ## 💻 CLI Usage
 
 ### Proxy Configuration
@@ -87,6 +89,7 @@ database:
 MMM follows a consistent outbound network policy:
 - **Default**: All outbound requests use the global proxy if enabled.
 - **Granular Control**: Each provider (Amazon, Bangumi, etc.) can be configured to:
+- **Granular Control**: Each provider can be configured to:
   - `inherit`: Use global proxy.
   - `disabled`: Bypass proxy for this specific source.
   - `custom`: Use a dedicated proxy for this specific source.
