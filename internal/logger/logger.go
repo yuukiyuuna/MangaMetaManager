@@ -12,7 +12,12 @@ import (
 func InitLogger() {
 	logPath := viper.GetString("logging.path")
 	if logPath == "" {
-		logPath = "logs/mmm.log"
+		// Check if we are in Docker and have /app/data
+		if _, err := os.Stat("/app/data"); err == nil {
+			logPath = "/app/data/logs/mmm.log"
+		} else {
+			logPath = "logs/mmm.log"
+		}
 	}
 
 	maxSize := viper.GetInt("logging.max_size_mb")

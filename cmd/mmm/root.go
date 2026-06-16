@@ -30,7 +30,8 @@ func initConfig() {
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Search in current directory and home directory
+		// Search in /app/data (for Docker persistence), current directory and home directory
+		viper.AddConfigPath("/app/data")
 		viper.AddConfigPath(".")
 		home, err := os.UserHomeDir()
 		if err == nil {

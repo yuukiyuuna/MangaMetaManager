@@ -31,9 +31,15 @@ COPY --from=backend-builder /app/mmm .
 # 拷贝前端产物到正确位置，以便 Gin 提供服务
 COPY --from=frontend-builder /app/web/dist ./web/dist
 
+# 拷贝默认配置示例，用户可以挂载 config.yaml 到 /app/data/config.yaml
+COPY config.yaml.example ./config.yaml.example
+
 # 拷贝并设置启动脚本
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
+
+# 创建初始目录并设置权限（虽然 entrypoint 也会做，但这里预创建一层）
+RUN mkdir -p /app/data /app/logs
 
 # 暴露后端服务端口
 EXPOSE 8080
@@ -45,4 +51,5 @@ ENV GIN_MODE=release
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 # 默认运行参数
+# 数据库路径默认指向 /app/data/mmm.db 以便挂载卷持久化
 CMD ["./mmm", "serve", "--db", "/app/data/mmm.db", "--port", "8080"]
