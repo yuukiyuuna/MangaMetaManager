@@ -923,7 +923,10 @@ func (h *MangaHandler) ScanLibrary(c *gin.Context) {
 	task.Work = func() error {
 		return scanner.ScanLibrary(task)
 	}
-	core.GlobalTaskManager.AddTask(task)
+	if !core.GlobalTaskManager.AddTaskIfNoActiveType(task) {
+		c.JSON(http.StatusConflict, gin.H{"error": "Library scan is already running or queued"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"status": "scan task added to queue"})
 }
 

@@ -57,6 +57,21 @@ func (tm *TaskManager) AddTask(t *Task) {
 	tm.taskChan <- t
 }
 
+func (tm *TaskManager) AddTaskIfNoActiveType(t *Task) bool {
+	tm.mu.Lock()
+	for _, existing := range tm.tasks {
+		if existing.Type == t.Type && (existing.Status == "pending" || existing.Status == "running") {
+			tm.mu.Unlock()
+			return false
+		}
+	}
+	t.Status = "pending"
+	tm.tasks = append(tm.tasks, t)
+	tm.mu.Unlock()
+	tm.taskChan <- t
+	return true
+}
+
 func (tm *TaskManager) worker() {
 	for t := range tm.taskChan {
 		tm.updateTask(t, "running", "")

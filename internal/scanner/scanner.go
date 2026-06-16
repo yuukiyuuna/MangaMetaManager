@@ -18,8 +18,14 @@ func ScanLibrary(task *core.Task) error {
 		return err
 	}
 
+	total := 0
 	if task != nil {
-		core.GlobalTaskManager.UpdateProgress(task, 0, 0, "Starting scan...")
+		archiveTotal, err := countArchives(folders)
+		if err != nil {
+			return err
+		}
+		total = archiveTotal
+		core.GlobalTaskManager.UpdateProgress(task, 0, total, "Starting scan...")
 	}
 
 	count := 0
@@ -32,19 +38,10 @@ func ScanLibrary(task *core.Task) error {
 			if !info.IsDir() {
 				name := filepath.Base(path)
 
-				// Cleanup abandoned temp files
-				if strings.HasPrefix(name, "mmm-tmp-") || strings.HasPrefix(name, "mmm-raw-tmp-") {
-					log.Printf("Cleaning up abandoned temp file: %s", path)
-					if err := os.Remove(path); err != nil {
-						log.Printf("Failed to remove abandoned temp file %s: %v", path, err)
-					}
-					return nil // Skip further processing for temp files
-				}
-
 				if IsArchive(path) {
 					count++
 					if task != nil {
-						core.GlobalTaskManager.UpdateProgress(task, count, 0, name) // 0 total for indeterminate progress
+						core.GlobalTaskManager.UpdateProgress(task, count, total, name)
 					}
 					if err := processMangaFile(path, info); err != nil {
 						return err
@@ -59,6 +56,25 @@ func ScanLibrary(task *core.Task) error {
 		}
 	}
 	return nil
+}
+
+func countArchives(folders []models.LibraryFolder) (int, error) {
+	total := 0
+	for _, folder := range folders {
+		if err := filepath.Walk(folder.Path, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() && IsArchive(path) {
+				total++
+			}
+			return nil
+		}); err != nil {
+			log.Printf("Error counting archives in folder %s: %v", folder.Path, err)
+			return 0, err
+		}
+	}
+	return total, nil
 }
 
 func CleanupTempFiles() {
