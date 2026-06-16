@@ -11,22 +11,11 @@ database:
 
 # Library Settings
 library:
-  # Interval for auto-scanning (not yet implemented in backend, but reserved)
-  scan_interval_minutes: 60
+  # Folder settings are managed via UI/CLI and stored in DB.
+  # (Placeholder for future global library settings)
 
 # Logging Settings
 logging:
   path: "logs/mmm.log"
   max_size_mb: 1024
   max_age_days: 30
-
-# Proxy Settings (Default placeholders, usually managed via UI/CLI and stored in DB)
-# These settings in YAML will be overridden by DB settings if they exist.
-proxy:
-  enabled: false
-  type: "http"
-  host: ""
-  port: 0
-  username: ""
-  password: ""
-  noproxy: "localhost,127.0.0.1"

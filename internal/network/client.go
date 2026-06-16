@@ -77,6 +77,15 @@ func (f *HTTPClientFactory) GetClient(providerID string) (*http.Client, error) {
 			Timeout:   30 * time.Second,
 		}
 	} else {
+		// Define a helper for getting timeout
+		getTimeout := func(seconds int) time.Duration {
+			if seconds > 0 {
+				return time.Duration(seconds) * time.Second
+			}
+			return 30 * time.Second
+		}
+		globalTimeout := getTimeout(proxySettings.TimeoutSeconds)
+
 		// Get Provider Strategy
 		strategyFound := false
 		if providerID != "" {
@@ -86,7 +95,7 @@ func (f *HTTPClientFactory) GetClient(providerID string) (*http.Client, error) {
 				case "disabled":
 					client = &http.Client{
 						Transport: &userAgentTransport{http.DefaultTransport},
-						Timeout:   30 * time.Second,
+						Timeout:   globalTimeout,
 					}
 				case "custom":
 					client, err = f.createCustomClient(&providerStrategy)
@@ -104,7 +113,7 @@ func (f *HTTPClientFactory) GetClient(providerID string) (*http.Client, error) {
 			} else {
 				client = &http.Client{
 					Transport: &userAgentTransport{http.DefaultTransport},
-					Timeout:   30 * time.Second,
+					Timeout:   globalTimeout,
 				}
 			}
 		}
@@ -127,10 +136,15 @@ func (f *HTTPClientFactory) createGlobalClient(s *models.ProxySettings) (*http.C
 		return nil, err
 	}
 
+	timeout := time.Duration(s.TimeoutSeconds) * time.Second
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
+
 	transport := &http.Transport{
 		Proxy: http.ProxyURL(proxyURL),
 		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
+			Timeout:   timeout,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
 		ForceAttemptHTTP2:     true,
@@ -152,11 +166,6 @@ func (f *HTTPClientFactory) createGlobalClient(s *models.ProxySettings) (*http.C
 		}
 	}
 
-	timeout := time.Duration(s.TimeoutSeconds) * time.Second
-	if timeout == 0 {
-		timeout = 30 * time.Second
-	}
-
 	return &http.Client{
 		Transport: &userAgentTransport{transport},
 		Timeout:   timeout,
@@ -169,10 +178,15 @@ func (f *HTTPClientFactory) createCustomClient(s *models.ProviderProxyStrategy) 
 		return nil, err
 	}
 
+	timeout := time.Duration(s.TimeoutSeconds) * time.Second
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
+
 	transport := &http.Transport{
 		Proxy: http.ProxyURL(proxyURL),
 		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
+			Timeout:   timeout,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
 		ForceAttemptHTTP2:     true,
@@ -201,11 +215,6 @@ func (f *HTTPClientFactory) createCustomClient(s *models.ProviderProxyStrategy) 
 			}
 			return originalProxy(req)
 		}
-	}
-
-	timeout := time.Duration(s.TimeoutSeconds) * time.Second
-	if timeout == 0 {
-		timeout = 30 * time.Second
 	}
 
 	return &http.Client{

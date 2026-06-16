@@ -9,7 +9,11 @@ interface ProxySectionProps {
 }
 
 const ProxySection: React.FC<ProxySectionProps> = ({ initialData }) => {
-  const [proxy, setProxy] = useState<ProxySettings>(initialData);
+  const [proxy, setProxy] = useState<ProxySettings>({
+    ...initialData,
+    type: initialData.type || 'http',
+    timeoutSeconds: initialData.timeoutSeconds || 30
+  });
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null);
 
   const saveProxy = async () => {
@@ -29,9 +33,9 @@ const ProxySection: React.FC<ProxySectionProps> = ({ initialData }) => {
       if (res.data.success) {
         setTestResult({ success: true, msg: 'Connected successfully!' });
       } else {
-        setTestResult({ success: false, msg: (res.data as any).error || 'Failed to connect.' });
+        setTestResult({ success: false, msg: (res.data as { error?: string }).error || 'Failed to connect.' });
       }
-    } catch (err) {
+    } catch {
       setTestResult({ success: false, msg: 'Error testing proxy.' });
     }
   };

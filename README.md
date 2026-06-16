@@ -73,7 +73,7 @@ Manage your collection folders and scan for changes:
 
 ## ⚙️ Configuration
 
-A `config.yaml` file is created on first run (or you can use `config.yaml.example`). It allows you to customize server ports, database paths, and initial proxy settings.
+A `config.yaml` file is created on first run (or you can use `config.yaml.example`). It allows you to customize server ports, database paths, and logging.
 
 ```yaml
 server:

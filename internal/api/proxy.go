@@ -108,7 +108,7 @@ func (h *ProxyHandler) UpdateGlobalProxy(c *gin.Context) {
 		if input.Password == "" {
 			input.Password = settings.Password
 		}
-		if err := models.DB.Model(&settings).Updates(input).Error; err != nil {
+		if err := models.DB.Model(&settings).Select("*").Updates(input).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -189,7 +189,7 @@ func (h *ProxyHandler) UpdateProviderProxy(c *gin.Context) {
 		if input.Password == "" {
 			input.Password = strategy.Password
 		}
-		if err := models.DB.Model(&strategy).Updates(input).Error; err != nil {
+		if err := models.DB.Model(&strategy).Select("*").Updates(input).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
