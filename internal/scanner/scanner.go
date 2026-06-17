@@ -9,6 +9,7 @@ import (
 
 	"github.com/yuukiyuuna/MangaMetaManager/internal/core"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
+	"gorm.io/gorm"
 )
 
 func ScanLibrary(task *core.Task) error {
@@ -27,10 +28,10 @@ func ScanLibrary(task *core.Task) error {
 			if err != nil {
 				return err
 			}
-			
+
 			if !info.IsDir() {
 				name := filepath.Base(path)
-				
+
 				// Cleanup abandoned temp files
 				if strings.HasPrefix(name, "mmm-tmp-") || strings.HasPrefix(name, "mmm-raw-tmp-") {
 					log.Printf("Cleaning up abandoned temp file: %s", path)
@@ -43,13 +44,16 @@ func ScanLibrary(task *core.Task) error {
 					if task != nil {
 						core.GlobalTaskManager.UpdateProgress(task, count, 0, name) // 0 total for indeterminate progress
 					}
-					processMangaFile(path, info)
+					if err := processMangaFile(path, info); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
 		})
 		if err != nil {
 			log.Printf("Error scanning folder %s: %v", folder.Path, err)
+			return err
 		}
 	}
 	return nil
@@ -80,7 +84,7 @@ func CleanupTempFiles() {
 
 func CleanLibrary(task *core.Task) error {
 	log.Println("Starting database clean...")
-	
+
 	// 1. Clean Series
 	var seriesList []models.MangaSeries
 	if err := models.DB.Find(&seriesList).Error; err == nil {
@@ -116,28 +120,41 @@ func CleanLibrary(task *core.Task) error {
 	return nil
 }
 
-func processMangaFile(path string, info os.FileInfo) {
+func processMangaFile(path string, info os.FileInfo) error {
 	dir := filepath.Dir(path)
 	filename := filepath.Base(path)
-	
+
 	var series models.MangaSeries
 	result := models.DB.Where("path = ?", dir).First(&series)
 	if result.Error != nil {
-		series = models.MangaSeries{
-			Path: dir,
-			MangaBase: models.MangaBase{
-				Title: filepath.Base(dir),
-			},
+		if result.Error != gorm.ErrRecordNotFound {
+			return result.Error
 		}
-		models.DB.Create(&series)
+		if err := models.DB.Unscoped().Where("path = ?", dir).First(&series).Error; err == nil {
+			if err := models.DB.Unscoped().Model(&series).Update("deleted_at", nil).Error; err != nil {
+				return err
+			}
+		} else if err == gorm.ErrRecordNotFound {
+			series = models.MangaSeries{
+				Path: dir,
+				MangaBase: models.MangaBase{
+					Title: filepath.Base(dir),
+				},
+			}
+			if err := models.DB.Create(&series).Error; err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 
 	var book models.MangaBook
 	result = models.DB.Where("path = ?", path).First(&book)
-	
+
 	// Incremental scan: check if file has changed
 	if result.Error == nil && book.FileModTime == info.ModTime().Unix() && book.FileSize == info.Size() {
-		return
+		return nil
 	}
 
 	comicInfo, err := ReadComicInfo(path)
@@ -165,7 +182,7 @@ func processMangaFile(path string, info os.FileInfo) {
 		newBook.Author = comicInfo.Writer
 		newBook.Summary = comicInfo.Summary
 		newBook.Status = "Scraped"
-		
+
 		// Map back ComicInfo.Manga to our Type
 		if comicInfo.Manga == "No" {
 			newBook.Type = "小说"
@@ -173,9 +190,27 @@ func processMangaFile(path string, info os.FileInfo) {
 	}
 
 	if result.Error != nil {
-		models.DB.Create(&newBook)
+		if result.Error != gorm.ErrRecordNotFound {
+			return result.Error
+		}
+		if err := models.DB.Unscoped().Where("path = ?", path).First(&book).Error; err == nil {
+			newBook.ID = book.ID
+			newBook.CreatedAt = book.CreatedAt
+			newBook.DeletedAt = gorm.DeletedAt{}
+			if err := models.DB.Unscoped().Save(&newBook).Error; err != nil {
+				return err
+			}
+		} else if err == gorm.ErrRecordNotFound {
+			if err := models.DB.Create(&newBook).Error; err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
 	} else {
-		models.DB.Model(&book).Updates(newBook)
+		if err := models.DB.Model(&book).Updates(newBook).Error; err != nil {
+			return err
+		}
 	}
 
 	// Sync series metadata to DB if available
@@ -185,6 +220,9 @@ func processMangaFile(path string, info os.FileInfo) {
 		series.Summary = comicInfo.Summary
 		series.Genre = comicInfo.Genre
 		series.Status = "Scraped"
-		models.DB.Save(&series)
+		if err := models.DB.Save(&series).Error; err != nil {
+			return err
+		}
 	}
+	return nil
 }
