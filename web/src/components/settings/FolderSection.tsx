@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { Plus, Trash2 } from 'lucide-react';
 import { api } from '../../api';
 import type { LibraryFolder } from '../../api';
+import { showToast } from '../Toast';
 
 interface FolderSectionProps {
   initialFolders: LibraryFolder[];
@@ -11,12 +13,20 @@ const FolderSection: React.FC<FolderSectionProps> = ({ initialFolders }) => {
   const [folders, setFolders] = useState<LibraryFolder[]>(initialFolders);
   const [newFolderPath, setNewFolderPath] = useState('');
 
+  const getErrorMessage = (err: unknown, fallback: string) => {
+    if (axios.isAxiosError(err)) {
+      return err.response?.data?.error || fallback;
+    }
+    return fallback;
+  };
+
   const refreshFolders = async () => {
     try {
       const res = await api.getLibraryFolders();
       setFolders(res.data);
     } catch (err) {
       console.error(err);
+      showToast(getErrorMessage(err, 'Failed to refresh library folders.'), 'error');
     }
   };
 
@@ -26,8 +36,10 @@ const FolderSection: React.FC<FolderSectionProps> = ({ initialFolders }) => {
       await api.addLibraryFolder(newFolderPath);
       setNewFolderPath('');
       refreshFolders();
+      showToast('Library folder added.');
     } catch (err) {
       console.error(err);
+      showToast(getErrorMessage(err, 'Failed to add library folder.'), 'error');
     }
   };
 
@@ -35,8 +47,10 @@ const FolderSection: React.FC<FolderSectionProps> = ({ initialFolders }) => {
     try {
       await api.removeLibraryFolder(id);
       refreshFolders();
+      showToast('Library folder removed from database.');
     } catch (err) {
       console.error(err);
+      showToast(getErrorMessage(err, 'Failed to remove library folder.'), 'error');
     }
   };
 

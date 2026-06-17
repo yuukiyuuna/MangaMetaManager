@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -112,5 +113,116 @@ func TestAddLibraryFolderIsIdempotent(t *testing.T) {
 	recorder = performJSONRequest(t, router, http.MethodPost, "/api/library/folders", map[string]string{"path": libraryPath})
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected re-add status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestRemoveLibraryFolderHardDeletesDatabaseOnly(t *testing.T) {
+	router := setupTestRouter(t)
+	libraryPath := t.TempDir()
+	seriesPath := filepath.Join(libraryPath, "series")
+	if err := os.Mkdir(seriesPath, 0755); err != nil {
+		t.Fatalf("failed to create series dir: %v", err)
+	}
+	bookPath := filepath.Join(seriesPath, "book.cbz")
+	if err := os.WriteFile(bookPath, []byte("source"), 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	folder := models.LibraryFolder{Path: libraryPath}
+	if err := models.DB.Create(&folder).Error; err != nil {
+		t.Fatalf("failed to create folder: %v", err)
+	}
+	series := models.MangaSeries{Path: seriesPath, MangaBase: models.MangaBase{Title: "series"}}
+	if err := models.DB.Create(&series).Error; err != nil {
+		t.Fatalf("failed to create series: %v", err)
+	}
+	book := models.MangaBook{SeriesID: series.ID, Path: bookPath, Filename: "book.cbz"}
+	if err := models.DB.Create(&book).Error; err != nil {
+		t.Fatalf("failed to create book: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodDelete, "/api/library/folders/"+strconv.FormatUint(uint64(folder.ID), 10), nil)
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected delete status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	for name, model := range map[string]any{
+		"folder": &models.LibraryFolder{},
+		"series": &models.MangaSeries{},
+		"book":   &models.MangaBook{},
+	} {
+		var count int64
+		if err := models.DB.Unscoped().Model(model).Count(&count).Error; err != nil {
+			t.Fatalf("failed to count %s records: %v", name, err)
+		}
+		if count != 0 {
+			t.Fatalf("expected no %s records after hard delete, got %d", name, count)
+		}
+	}
+
+	if _, err := os.Stat(bookPath); err != nil {
+		t.Fatalf("expected source file to remain untouched: %v", err)
+	}
+
+	recorder = performJSONRequest(t, router, http.MethodPost, "/api/library/folders", map[string]string{"path": libraryPath})
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected re-add status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestAddLibraryFolderPurgesLegacySoftDeletedData(t *testing.T) {
+	router := setupTestRouter(t)
+	libraryPath := t.TempDir()
+	seriesPath := filepath.Join(libraryPath, "series")
+	bookPath := filepath.Join(seriesPath, "book.cbz")
+
+	folder := models.LibraryFolder{Path: libraryPath}
+	if err := models.DB.Create(&folder).Error; err != nil {
+		t.Fatalf("failed to create folder: %v", err)
+	}
+	series := models.MangaSeries{Path: seriesPath, MangaBase: models.MangaBase{Title: "series"}}
+	if err := models.DB.Create(&series).Error; err != nil {
+		t.Fatalf("failed to create series: %v", err)
+	}
+	book := models.MangaBook{SeriesID: series.ID, Path: bookPath, Filename: "book.cbz"}
+	if err := models.DB.Create(&book).Error; err != nil {
+		t.Fatalf("failed to create book: %v", err)
+	}
+	if err := models.DB.Delete(&book).Error; err != nil {
+		t.Fatalf("failed to soft delete book: %v", err)
+	}
+	if err := models.DB.Delete(&series).Error; err != nil {
+		t.Fatalf("failed to soft delete series: %v", err)
+	}
+	if err := models.DB.Delete(&folder).Error; err != nil {
+		t.Fatalf("failed to soft delete folder: %v", err)
+	}
+
+	recorder := performJSONRequest(t, router, http.MethodPost, "/api/library/folders", map[string]string{"path": libraryPath})
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected add status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	for name, model := range map[string]any{
+		"series": &models.MangaSeries{},
+		"book":   &models.MangaBook{},
+	} {
+		var count int64
+		if err := models.DB.Unscoped().Model(model).Count(&count).Error; err != nil {
+			t.Fatalf("failed to count %s records: %v", name, err)
+		}
+		if count != 0 {
+			t.Fatalf("expected no legacy %s records after re-add, got %d", name, count)
+		}
+	}
+
+	var folderCount int64
+	if err := models.DB.Model(&models.LibraryFolder{}).Where("path = ?", libraryPath).Count(&folderCount).Error; err != nil {
+		t.Fatalf("failed to count active folders: %v", err)
+	}
+	if folderCount != 1 {
+		t.Fatalf("expected one active folder after re-add, got %d", folderCount)
 	}
 }

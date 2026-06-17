@@ -703,15 +703,17 @@ func (h *MangaHandler) AddLibraryFolder(c *gin.Context) {
 
 	input.Path = absPath
 	var existing models.LibraryFolder
-	if err := models.DB.Unscoped().Where("path = ?", absPath).First(&existing).Error; err == nil {
-		if existing.DeletedAt.Valid {
-			if err := models.DB.Unscoped().Model(&existing).Update("deleted_at", nil).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			existing.DeletedAt = gorm.DeletedAt{}
-		}
+	if err := models.DB.Where("path = ?", absPath).First(&existing).Error; err == nil {
 		c.JSON(http.StatusOK, existing)
+		return
+	}
+	if err := models.DB.Transaction(func(tx *gorm.DB) error {
+		if err := hardDeleteLibraryFolderData(tx, absPath); err != nil {
+			return err
+		}
+		return tx.Unscoped().Where("path = ?", absPath).Delete(&models.LibraryFolder{}).Error
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -733,25 +735,12 @@ func (h *MangaHandler) RemoveLibraryFolder(c *gin.Context) {
 	// Delete all series and books associated with this folder path
 	// We use a transaction for safety
 	err := models.DB.Transaction(func(tx *gorm.DB) error {
-		// Find series in this folder. Match exactly or as a subfolder.
-		pattern := folder.Path + "/%"
-
-		var seriesIDs []uint
-		tx.Model(&models.MangaSeries{}).Where("path = ? OR path LIKE ?", folder.Path, pattern).Pluck("id", &seriesIDs)
-
-		if len(seriesIDs) > 0 {
-			// Delete books belonging to these series
-			if err := tx.Where("series_id IN ?", seriesIDs).Delete(&models.MangaBook{}).Error; err != nil {
-				return err
-			}
-			// Delete the series themselves
-			if err := tx.Where("id IN ?", seriesIDs).Delete(&models.MangaSeries{}).Error; err != nil {
-				return err
-			}
+		if err := hardDeleteLibraryFolderData(tx, folder.Path); err != nil {
+			return err
 		}
 
 		// 2. Delete the LibraryFolder record
-		if err := tx.Delete(&models.LibraryFolder{}, id).Error; err != nil {
+		if err := tx.Unscoped().Delete(&models.LibraryFolder{}, id).Error; err != nil {
 			return err
 		}
 
@@ -764,6 +753,26 @@ func (h *MangaHandler) RemoveLibraryFolder(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "deleted and cleaned up"})
+}
+
+func hardDeleteLibraryFolderData(tx *gorm.DB, folderPath string) error {
+	pattern := folderPath + "/%"
+
+	var seriesIDs []uint
+	if err := tx.Unscoped().Model(&models.MangaSeries{}).Where("path = ? OR path LIKE ?", folderPath, pattern).Pluck("id", &seriesIDs).Error; err != nil {
+		return err
+	}
+
+	if len(seriesIDs) > 0 {
+		if err := tx.Unscoped().Where("series_id IN ?", seriesIDs).Delete(&models.MangaBook{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("id IN ?", seriesIDs).Delete(&models.MangaSeries{}).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (h *MangaHandler) CleanLibrary(c *gin.Context) {
