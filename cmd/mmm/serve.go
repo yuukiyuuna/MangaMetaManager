@@ -5,14 +5,13 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/cobra"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/api"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/core"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/logger"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/models"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/provider"
 	"github.com/yuukiyuuna/MangaMetaManager/internal/scanner"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var serveCmd = &cobra.Command{
@@ -27,9 +26,6 @@ var serveCmd = &cobra.Command{
 
 		// Initialize Database
 		dbPath, _ := cmd.Flags().GetString("db")
-		if dbPath == "" {
-			dbPath = viper.GetString("database.path")
-		}
 		if dbPath == "" {
 			dbPath = "mmm.db"
 		}
@@ -62,7 +58,7 @@ var serveCmd = &cobra.Command{
 		r.Static("/assets", "web/dist/assets")
 		r.StaticFile("/favicon.svg", "web/dist/favicon.svg")
 		r.StaticFile("/icons.svg", "web/dist/icons.svg")
-		
+
 		r.NoRoute(func(c *gin.Context) {
 			// Check if the request is for an API, if so, don't serve index.html
 			if !strings.HasPrefix(c.Request.URL.Path, "/api") {
@@ -78,14 +74,13 @@ var serveCmd = &cobra.Command{
 
 		port, _ := cmd.Flags().GetString("port")
 		if port == "" {
-			port = viper.GetString("server.port")
-		}
-		if port == "" {
 			port = "8080"
 		}
+		host, _ := cmd.Flags().GetString("host")
+		addr := host + ":" + port
 
-		log.Printf("Starting server on port %s", port)
-		if err := r.Run(":" + port); err != nil {
+		log.Printf("Starting server on %s", addr)
+		if err := r.Run(addr); err != nil {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	},
@@ -93,6 +88,7 @@ var serveCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
-	serveCmd.Flags().StringP("port", "p", "", "Port to listen on (default from config or 8080)")
-	serveCmd.Flags().StringP("db", "d", "", "Path to SQLite database (default from config or mmm.db)")
+	serveCmd.Flags().StringP("host", "H", "0.0.0.0", "Host/IP to listen on")
+	serveCmd.Flags().StringP("port", "p", "8080", "Port to listen on")
+	serveCmd.Flags().StringP("db", "d", "mmm.db", "Path to SQLite database")
 }

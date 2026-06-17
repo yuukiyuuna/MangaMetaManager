@@ -41,10 +41,17 @@ func (h *SettingsHandler) UpdateAppSettings(c *gin.Context) {
 	var settings models.AppSettings
 	result := models.DB.First(&settings)
 	if result.Error != nil {
-		models.DB.Create(&input)
+		if err := models.DB.Select("backup_before_flatten").Create(&input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 		settings = input
 	} else {
-		models.DB.Model(&settings).Updates(input)
+		if err := models.DB.Model(&settings).Select("backup_before_flatten").Updates(input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		settings.BackupBeforeFlatten = input.BackupBeforeFlatten
 	}
 
 	c.JSON(http.StatusOK, settings)

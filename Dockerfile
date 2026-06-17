@@ -35,9 +35,6 @@ COPY --from=backend-builder /app/mmm .
 # 拷贝前端产物到正确位置，以便 Gin 提供服务
 COPY --from=frontend-builder /app/web/dist ./web/dist
 
-# 拷贝默认配置示例
-COPY config.yaml.example ./config.yaml.example
-
 # 拷贝并设置启动脚本
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh

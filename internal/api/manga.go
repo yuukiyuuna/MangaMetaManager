@@ -35,11 +35,11 @@ func (h *MangaHandler) RegisterRoutes(r *gin.RouterGroup) {
 		manga.DELETE("/:id", h.DeleteSeries)
 		manga.POST("/:id/scrape", h.ScrapeSeries)
 		manga.POST("/:id/auto-scrape-books", h.AutoScrapeBooks)
-		
+
 		manga.GET("/books/:bookId", h.GetBook)
 		manga.PATCH("/books/:bookId", h.UpdateBook)
 		manga.POST("/books/:bookId/scrape", h.ScrapeBook)
-		
+
 		// RAW XML Routes
 		manga.GET("/:id/xml", h.GetSeriesXML)
 		manga.PUT("/:id/xml", h.UpdateSeriesXML)
@@ -69,14 +69,18 @@ func (h *MangaHandler) getBackupSetting() bool {
 func (h *MangaHandler) ListSeries(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	sizeStr := c.DefaultQuery("size", "20")
-	
+
 	var page, size int
 	fmt.Sscanf(pageStr, "%d", &page)
 	fmt.Sscanf(sizeStr, "%d", &size)
-	
-	if page < 1 { page = 1 }
-	if size < 1 { size = 20 }
-	
+
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 {
+		size = 20
+	}
+
 	offset := (page - 1) * size
 
 	var series []models.MangaSeries
@@ -117,21 +121,21 @@ func (h *MangaHandler) UpdateSeries(c *gin.Context) {
 		"originalTitle":   "original_title",
 		"series":          "series",
 		"alternateSeries": "alternate_series",
-		"author":         "author",
-		"translator":     "translator",
-		"publisher":      "publisher",
-		"genre":          "genre",
-		"tags":           "tags",
-		"summary":        "summary",
+		"author":          "author",
+		"translator":      "translator",
+		"publisher":       "publisher",
+		"genre":           "genre",
+		"tags":            "tags",
+		"summary":         "summary",
 
-		"year":            "year",
-		"month":           "month",
-		"day":             "day",
-		"web":             "web",
-		"language":        "language",
-		"type":            "type",
-		"ageRating":       "age_rating",
-		"gtin":            "gtin",
+		"year":      "year",
+		"month":     "month",
+		"day":       "day",
+		"web":       "web",
+		"language":  "language",
+		"type":      "type",
+		"ageRating": "age_rating",
+		"gtin":      "gtin",
 	}
 
 	dbUpdates := make(map[string]interface{})
@@ -164,25 +168,25 @@ func (h *MangaHandler) DeleteSeries(c *gin.Context) {
 }
 
 type ScrapeRequest struct {
-	Title           string `json:"title"`
-	OriginalTitle   string `json:"originalTitle"`
-	Series          string `json:"series"`
-	AlternateSeries string `json:"alternateSeries"`
-	Author          string `json:"author"`
-	Translator      string `json:"translator"`
-	Publisher       string `json:"publisher"`
-	Genre           string `json:"genre"`
-	Tags            string `json:"tags"`
-	Summary         string `json:"summary"`
-	Year            int    `json:"year"`
-	Month           int    `json:"month"`
-	Day             int    `json:"day"`
-	Web             string `json:"web"`
-	Language        string `json:"language"`
-	PageCount       int    `json:"pageCount"`
-	Type            string `json:"type"`
-	AgeRating       string `json:"ageRating"`
-	GTIN            string `json:"gtin"`
+	Title           string  `json:"title"`
+	OriginalTitle   string  `json:"originalTitle"`
+	Series          string  `json:"series"`
+	AlternateSeries string  `json:"alternateSeries"`
+	Author          string  `json:"author"`
+	Translator      string  `json:"translator"`
+	Publisher       string  `json:"publisher"`
+	Genre           string  `json:"genre"`
+	Tags            string  `json:"tags"`
+	Summary         string  `json:"summary"`
+	Year            int     `json:"year"`
+	Month           int     `json:"month"`
+	Day             int     `json:"day"`
+	Web             string  `json:"web"`
+	Language        string  `json:"language"`
+	PageCount       int     `json:"pageCount"`
+	Type            string  `json:"type"`
+	AgeRating       string  `json:"ageRating"`
+	GTIN            string  `json:"gtin"`
 	Volume          float64 `json:"volume"`
 }
 
@@ -267,7 +271,7 @@ func (h *MangaHandler) UpdateBook(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Reload and Sync
 	models.DB.First(&book, id)
 	core.SyncQueue <- func() {
@@ -318,7 +322,7 @@ func (h *MangaHandler) ScrapeBook(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, book)
-	}
+}
 
 func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 	seriesId := c.Param("id")
@@ -384,14 +388,16 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 		time.Sleep(1000 * time.Millisecond)
 
 		var books []models.MangaBook
-		if err := models.DB.Where("series_id = ?", seriesId).Find(&books).Error; err != nil { return }
+		if err := models.DB.Where("series_id = ?", seriesId).Find(&books).Error; err != nil {
+			return
+		}
 
 		total := len(books)
 		core.GlobalTaskManager.UpdateProgress(task, 0, total, "Starting...")
 
 		for i, b := range books {
 			core.GlobalTaskManager.UpdateProgress(task, i+1, total, fmt.Sprintf("Processing %s", b.Filename))
-			
+
 			localVol := utils.ParseVolumeNumber(b.Filename)
 			var matchedID string
 
@@ -410,7 +416,7 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 				} else if len(matches) > 1 {
 					// Handle ambiguity: look for keywords like "特装版", "限定版"
 					keywords := []string{"特装版", "限定版", "特装", "限定", "Special Edition", "Limited Edition", "Drama CD"}
-					
+
 					localHasKeyword := false
 					for _, k := range keywords {
 						if strings.Contains(strings.ToLower(b.Filename), strings.ToLower(k)) {
@@ -435,7 +441,7 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 							}
 						}
 					}
-					
+
 					// Fallback to first if still no match
 					if matchedID == "" {
 						matchedID = matches[0].ID
@@ -484,13 +490,13 @@ func (h *MangaHandler) AutoScrapeBooks(c *gin.Context) {
 					b.Web = details.Web
 					b.Language = details.LanguageISO
 					b.PageCount = details.PageCount
-					
+
 					if details.Manga == "No" {
 						b.Type = "小说"
 					} else {
 						b.Type = "漫画"
 					}
-					
+
 					b.AgeRating = details.AgeRating
 					b.GTIN = details.GTIN
 					b.Status = "Scraped"
@@ -557,7 +563,7 @@ func (h *MangaHandler) UpdateSeriesXML(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Map fields manually for sync
 	series.Title = info.Title
 	series.OriginalTitle = info.OriginalTitle
@@ -632,7 +638,7 @@ func (h *MangaHandler) UpdateBookXML(c *gin.Context) {
 		book.FileModTime = stat.ModTime().Unix()
 		book.FileSize = stat.Size()
 	}
-	
+
 	book.Title = info.Title
 	book.OriginalTitle = info.OriginalTitle
 	book.Series = info.Series
@@ -680,7 +686,7 @@ func (h *MangaHandler) AddLibraryFolder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid path format"})
 		return
 	}
-	
+
 	info, err := os.Stat(absPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -696,6 +702,19 @@ func (h *MangaHandler) AddLibraryFolder(c *gin.Context) {
 	}
 
 	input.Path = absPath
+	var existing models.LibraryFolder
+	if err := models.DB.Unscoped().Where("path = ?", absPath).First(&existing).Error; err == nil {
+		if existing.DeletedAt.Valid {
+			if err := models.DB.Unscoped().Model(&existing).Update("deleted_at", nil).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			existing.DeletedAt = gorm.DeletedAt{}
+		}
+		c.JSON(http.StatusOK, existing)
+		return
+	}
+
 	if err := models.DB.Create(&input).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -716,7 +735,7 @@ func (h *MangaHandler) RemoveLibraryFolder(c *gin.Context) {
 	err := models.DB.Transaction(func(tx *gorm.DB) error {
 		// Find series in this folder. Match exactly or as a subfolder.
 		pattern := folder.Path + "/%"
-		
+
 		var seriesIDs []uint
 		tx.Model(&models.MangaSeries{}).Where("path = ? OR path LIKE ?", folder.Path, pattern).Pluck("id", &seriesIDs)
 

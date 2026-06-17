@@ -5,30 +5,17 @@ import (
 	"log"
 	"os"
 
-	"github.com/spf13/viper"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 func InitLogger() {
-	logPath := viper.GetString("logging.path")
-	if logPath == "" {
-		// Check if we are in Docker and have /app/data
-		if _, err := os.Stat("/app/data"); err == nil {
-			logPath = "/app/data/logs/mmm.log"
-		} else {
-			logPath = "logs/mmm.log"
-		}
+	logPath := "logs/mmm.log"
+	if _, err := os.Stat("/app/data"); err == nil {
+		logPath = "/app/data/logs/mmm.log"
 	}
 
-	maxSize := viper.GetInt("logging.max_size_mb")
-	if maxSize == 0 {
-		maxSize = 1024 // 1GB
-	}
-
-	maxAge := viper.GetInt("logging.max_age_days")
-	if maxAge == 0 {
-		maxAge = 30
-	}
+	maxSize := 1024
+	maxAge := 30
 
 	lumberjackLogger := &lumberjack.Logger{
 		Filename:   logPath,

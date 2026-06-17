@@ -16,7 +16,7 @@ MangaMetaManager is a modern, local manga metadata management tool inspired by t
 
 ## 🛠 Tech Stack
 
-- **Backend**: Go (Gin, GORM, Cobra, Viper)
+- **Backend**: Go (Gin, GORM, Cobra)
 - **Frontend**: React (TypeScript, Vite, Tailwind CSS, Lucide Icons)
 - **Database**: SQLite
 
@@ -48,7 +48,7 @@ MangaMetaManager is a modern, local manga metadata management tool inspired by t
 
 Start the web server to access the GUI:
 ```bash
-./mmm serve --port 8080
+./mmm serve --host 0.0.0.0 --port 8080
 ```
 Then open [http://localhost:8080](http://localhost:8080) in your browser.
 
@@ -69,17 +69,12 @@ Manage your collection folders and scan for changes:
 ./mmm scan
 ```
 
-## ⚙️ Configuration
+## ⚙️ Runtime Settings
 
-A `config.yaml` file is created on first run (or you can use `config.yaml.example`). It allows you to customize server ports, database paths, and initial proxy settings.
+Startup options are controlled by CLI flags. Persistent app settings such as proxy, library folders, and metadata backup behavior are stored in SQLite and managed through the UI or CLI.
 
-```yaml
-server:
-  port: 8080
-  host: "0.0.0.0"
-
-database:
-  path: "mmm.db"
+```bash
+./mmm serve --host 0.0.0.0 --port 8080 --db mmm.db
 ```
 
 ## 🔒 Global Proxy Policy
